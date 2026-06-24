@@ -1,26 +1,25 @@
 'use client';
 
-import { useEffect } from 'react';
 import { Download, Printer } from 'lucide-react';
 import { Alert, Button, Spinner } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { useReportsStore } from '../store/use-reports-store';
+import { useReport } from '../hooks/use-reports';
+import { useReportsFiltersStore } from '../store/use-reports-filters-store';
+import { downloadCsv, toCsv } from '../utils';
 import { FiltersBar } from './filters-bar';
 import { SummaryCards } from './summary-cards';
 import { PeakHoursChart } from './peak-hours-chart';
 import { BreakdownList } from './breakdown-list';
 
 export function ReportsDashboard() {
-  const data = useReportsStore((s) => s.data);
-  const rows = useReportsStore((s) => s.rows);
-  const isLoading = useReportsStore((s) => s.isLoading);
-  const error = useReportsStore((s) => s.error);
-  const init = useReportsStore((s) => s.init);
-  const exportCsv = useReportsStore((s) => s.exportCsv);
+  const filters = useReportsFiltersStore((s) => s.filters);
+  const { data: report, isLoading, isError, isFetching } = useReport(filters);
 
-  useEffect(() => {
-    void init();
-  }, [init]);
+  const rows = report?.rows ?? [];
+  const data = report?.data ?? null;
+
+  const exportCsv = () =>
+    downloadCsv(`entrio-report_${filters.from}_to_${filters.to}.csv`, toCsv(rows));
 
   return (
     <div className="space-y-5">
@@ -37,14 +36,14 @@ export function ReportsDashboard() {
 
       <FiltersBar />
 
-      {error && <Alert variant="destructive">{error}</Alert>}
+      {isError && <Alert variant="destructive">Could not load report data.</Alert>}
 
       {!data ? (
         <div className="flex items-center justify-center py-16">
           <Spinner size={28} />
         </div>
       ) : (
-        <div className={cn('space-y-5 transition-opacity', isLoading && 'opacity-60')}>
+        <div className={cn('space-y-5 transition-opacity', (isLoading || isFetching) && 'opacity-60')}>
           <SummaryCards summary={data.summary} />
           <div className="grid gap-4 lg:grid-cols-2">
             <PeakHoursChart buckets={data.peakHours} />

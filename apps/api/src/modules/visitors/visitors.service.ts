@@ -1,12 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Visitor } from '@prisma/client';
+import { VisitStatus, type Visitor } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { CreateVisitorDto } from './dto/create-visitor.dto';
 
+/** A pending pre-registration for this visitor — its host is locked in at check-in (PRD §4.2). */
+export interface ExpectedVisitRef {
+  id: string;
+  hostId: string;
+  hostName: string;
+  purpose: string | null;
+  expectedTime: string | null;
+}
+
 export interface VisitorSearchResult {
   visitor: Visitor;
   lastVisitAt: string | null;
+  /** Soonest pending `expected` visit, if the visitor was pre-registered. */
+  expectedVisit: ExpectedVisitRef | null;
 }
 
 export interface SecurityCheckResult {
@@ -45,10 +56,46 @@ export class VisitorsService {
       take: 25,
     });
 
-    return visitors.map(({ visits, ...visitor }) => ({
-      visitor,
-      lastVisitAt: visits[0]?.checkInTime?.toISOString() ?? null,
-    }));
+    if (visitors.length === 0) return [];
+
+    // Soonest pending pre-registration per visitor → its host is locked at check-in (§4.2).
+    const expectedVisits = await this.prisma.visit.findMany({
+      where: {
+        visitorId: { in: visitors.map((v) => v.id) },
+        status: VisitStatus.expected,
+      },
+      orderBy: { expectedTime: 'asc' },
+      select: {
+        id: true,
+        visitorId: true,
+        hostId: true,
+        purpose: true,
+        expectedTime: true,
+        host: { select: { fullName: true } },
+      },
+    });
+
+    const soonestByVisitor = new Map<string, (typeof expectedVisits)[number]>();
+    for (const ev of expectedVisits) {
+      if (!soonestByVisitor.has(ev.visitorId)) soonestByVisitor.set(ev.visitorId, ev);
+    }
+
+    return visitors.map(({ visits, ...visitor }) => {
+      const expected = soonestByVisitor.get(visitor.id);
+      return {
+        visitor,
+        lastVisitAt: visits[0]?.checkInTime?.toISOString() ?? null,
+        expectedVisit: expected
+          ? {
+              id: expected.id,
+              hostId: expected.hostId,
+              hostName: expected.host.fullName,
+              purpose: expected.purpose,
+              expectedTime: expected.expectedTime?.toISOString() ?? null,
+            }
+          : null,
+      };
+    });
   }
 
   async findById(id: string): Promise<Visitor> {

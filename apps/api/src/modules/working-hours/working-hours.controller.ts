@@ -26,13 +26,20 @@ type AuthUser = { id: string; role: UserRole };
 @ApiTags('working-hours')
 @Controller('working-hours')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+@Roles(UserRole.ADMIN)
 export class WorkingHoursController {
   constructor(private readonly workingHours: WorkingHoursService) {}
 
   @Get()
   list() {
     return this.workingHours.listWorkingHours();
+  }
+
+  // Open/closed status for the check-in working-hours step — front-desk + admin.
+  @Get('status')
+  @Roles(UserRole.SECURITY, UserRole.ADMIN)
+  status() {
+    return this.workingHours.statusAt(new Date());
   }
 
   @Put(':dayOfWeek')

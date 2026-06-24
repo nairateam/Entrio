@@ -1,7 +1,7 @@
 'use client';
 
 import { VisitStatus } from '@entrio/types';
-import { Flag } from 'lucide-react';
+import { Flag, MessageSquare } from 'lucide-react';
 import {
   Avatar,
   Button,
@@ -56,7 +56,15 @@ export function VisitsTable({ visits, onCheckout, onFlag }: VisitsTableProps) {
                 </div>
               </div>
             </TableCell>
-            <TableCell>{visit.hostName}</TableCell>
+            <TableCell>
+              <div>{visit.hostName}</div>
+              {visit.hostResponse && (
+                <p className="mt-1 flex items-start gap-1 text-xs font-medium text-primary">
+                  <MessageSquare className="mt-0.5 h-3 w-3 shrink-0" />
+                  <span>“{visit.hostResponse}”</span>
+                </p>
+              )}
+            </TableCell>
             <TableCell className="text-muted-foreground">{visit.purpose ?? '—'}</TableCell>
             <TableCell>
               <VisitStatusBadge status={visit.status} />

@@ -3,13 +3,11 @@
  * Kept framework-agnostic so both the web app and the API can consume them.
  */
 
-/** Anyone with a login to the system. */
+/** Anyone with a login to the system (PRD v1.1 §2). */
 export enum UserRole {
   SECURITY = 'security',
   HOST = 'host',
   ADMIN = 'admin',
-  SUPER_ADMIN = 'super_admin',
-  SUPERVISOR = 'supervisor',
 }
 
 /** Lifecycle of a single visit (one visitor, one check-in event). */
@@ -27,11 +25,12 @@ export enum NotificationType {
   OVERRIDE_REQUEST = 'override_request',
   OVERRIDE_APPROVED = 'override_approved',
   OVERSTAY_ALERT = 'overstay_alert',
+  HOST_RESPONSE = 'host_response',
 }
 
 /** Delivery channel for a notification. */
 export enum NotificationChannel {
-  SMS = 'sms',
+  PUSH = 'push',
   EMAIL = 'email',
   IN_APP = 'in_app',
 }

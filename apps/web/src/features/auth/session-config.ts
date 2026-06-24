@@ -1,21 +1,36 @@
 import { UserRole } from '@entrio/types';
 
 /**
- * Edge-safe auth constants shared between the middleware (server) and the client
- * session helpers. Keep this module free of `document`/DOM and heavy imports so
- * it can be bundled into the Edge middleware runtime.
+ * Edge-safe auth constants shared between the middleware (server) and the client.
+ * Keep this module free of `document`/DOM and heavy imports so it bundles into
+ * the Edge middleware runtime.
  */
 
-/** Session cookie name. When the backend auth module lands this becomes the
- *  httpOnly cookie the API sets; the middleware check below stays the same. */
-export const SESSION_COOKIE = 'entrio_session';
+/** The httpOnly JWT cookie the API sets on login. */
+export const SESSION_COOKIE = 'access_token';
+
+const ROLE_VALUES = Object.values(UserRole) as string[];
+
+/**
+ * Read the role from a JWT *without verifying it* — for UX routing only (the API
+ * enforces real auth on every request). Edge-safe (`atob`, no Node Buffer).
+ */
+export function roleFromToken(token: string | undefined): UserRole | undefined {
+  const payload = token?.split('.')[1];
+  if (!payload) return undefined;
+  try {
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    const role = (JSON.parse(json) as { role?: string }).role;
+    return role && ROLE_VALUES.includes(role) ? (role as UserRole) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 const ROLE_HOME: Record<UserRole, string> = {
   [UserRole.SECURITY]: '/security',
   [UserRole.HOST]: '/host',
   [UserRole.ADMIN]: '/admin',
-  [UserRole.SUPER_ADMIN]: '/admin',
-  [UserRole.SUPERVISOR]: '/admin',
 };
 
 /** Landing route for a role after login. */
@@ -24,18 +39,13 @@ export function roleHome(role: UserRole | undefined): string {
 }
 
 /**
- * Section-level route authorization (PRD §2). Front-desk operators, supervisors
- * and admins share the Security workspace; Host is host-only; the Admin section
- * is for admins and supervisors. Finer per-page rules (e.g. supervisor not
- * seeing Reports) are reflected in the nav and enforced server-side per request.
+ * Section-level route authorization (PRD v1.1 §2). Security + Admin share the
+ * Security workspace; Host is host-only; the Admin section is admin-only.
  */
 const SECTION_ACCESS: Array<{ prefix: string; roles: UserRole[] }> = [
-  {
-    prefix: '/security',
-    roles: [UserRole.SECURITY, UserRole.SUPERVISOR, UserRole.ADMIN, UserRole.SUPER_ADMIN],
-  },
-  { prefix: '/host', roles: [UserRole.HOST, UserRole.ADMIN, UserRole.SUPER_ADMIN] },
-  { prefix: '/admin', roles: [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.SUPERVISOR] },
+  { prefix: '/security', roles: [UserRole.SECURITY, UserRole.ADMIN] },
+  { prefix: '/host', roles: [UserRole.HOST, UserRole.ADMIN] },
+  { prefix: '/admin', roles: [UserRole.ADMIN] },
 ];
 
 /** Whether a role may access a pathname. Non-section routes are unrestricted. */

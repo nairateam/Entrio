@@ -6,6 +6,7 @@ import type { BoardVisit } from './types';
 function visit(overrides: Partial<BoardVisit>): BoardVisit {
   return {
     id: 'v',
+    visitorId: 'vis-v',
     visitorName: 'Test Visitor',
     visitorPhone: '+1 555 0000',
     photoUrl: null,
@@ -15,7 +16,7 @@ function visit(overrides: Partial<BoardVisit>): BoardVisit {
     checkInTime: null,
     checkOutTime: null,
     expectedTime: null,
-    badgeCode: null,
+    hostResponse: null,
     ...overrides,
   };
 }

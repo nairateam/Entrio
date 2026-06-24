@@ -33,7 +33,6 @@ export function filterVisits(
     const byName = v.visitorName.toLowerCase().includes(q);
     const byHost = v.hostName.toLowerCase().includes(q);
     const byPhone = qDigits.length >= 3 && digits(v.visitorPhone).includes(qDigits);
-    const byBadge = Boolean(v.badgeCode && v.badgeCode.toLowerCase().includes(q));
-    return byName || byHost || byPhone || byBadge;
+    return byName || byHost || byPhone;
   });
 }

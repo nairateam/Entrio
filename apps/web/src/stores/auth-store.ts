@@ -1,42 +1,34 @@
 import { create } from 'zustand';
 import type { User } from '@entrio/types';
-import { clearSession, readSession, writeSession } from '@/features/auth/session';
+import { me } from '@/features/auth/api/auth-api';
 
 interface AuthState {
   user: User | null;
   /** Set the user directly (low-level; prefer signIn/signOut). */
   setUser: (user: User | null) => void;
-  /** Authenticate: persist the session and set the user. */
+  /** Record the signed-in user after a successful login (API set the cookie). */
   signIn: (user: User) => void;
-  /** Clear the session and the user. */
+  /** Clear the user locally (call authApi.logout() to clear the server cookie). */
   signOut: () => void;
-  /** Restore the user from the persisted session on app load / refresh. */
-  hydrate: () => void;
+  /** Restore the user from the session cookie on app load / refresh, via GET /api/auth/me. */
+  hydrate: () => Promise<void>;
 }
 
 /**
- * Client-side auth/session state. The app starts signed out; the user is set by
- * the login flow (mock for now) and restored from the session cookie on refresh
- * via `hydrate()`. Route protection lives in middleware.ts.
+ * Client-side auth/session state. The app starts signed out; login sets the user
+ * and `hydrate()` restores it after a refresh. The JWT lives in an httpOnly
+ * cookie owned by the API — never touched here. Route protection is middleware.ts.
  */
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
 
   setUser: (user) => set({ user }),
+  signIn: (user) => set({ user }),
+  signOut: () => set({ user: null }),
 
-  signIn: (user) => {
-    writeSession(user);
-    set({ user });
-  },
-
-  signOut: () => {
-    clearSession();
-    set({ user: null });
-  },
-
-  hydrate: () => {
+  hydrate: async () => {
     if (get().user) return;
-    const user = readSession();
-    if (user) set({ user });
+    const result = await me();
+    if (result) set({ user: result.user });
   },
 }));

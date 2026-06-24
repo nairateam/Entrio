@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { BarChart3, Ban, Flag, ScrollText, type LucideIcon } from 'lucide-react';
 import { Card, CardContent, Spinner } from '@/components/ui';
-import { SummaryCards, useReportsStore } from '@/features/reports';
+import { SummaryCards, useReport } from '@/features/reports';
+import { defaultReportFilters } from '@/features/reports';
 
 const QUICK_LINKS: Array<{ href: string; icon: LucideIcon; title: string; description: string }> = [
   { href: '/admin/reports', icon: BarChart3, title: 'Reports', description: 'Activity, filters, export' },
@@ -14,12 +15,10 @@ const QUICK_LINKS: Array<{ href: string; icon: LucideIcon; title: string; descri
 ];
 
 export default function AdminOverviewPage() {
-  const data = useReportsStore((s) => s.data);
-  const init = useReportsStore((s) => s.init);
-
-  useEffect(() => {
-    void init();
-  }, [init]);
+  // Stable default-range filters (last 10 days) so the query key doesn't churn.
+  const [filters] = useState(defaultReportFilters);
+  const { data: report } = useReport(filters);
+  const data = report?.data ?? null;
 
   return (
     <section className="space-y-6">

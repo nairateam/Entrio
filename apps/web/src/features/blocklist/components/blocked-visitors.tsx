@@ -1,91 +1,85 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState } from 'react';
+import { Avatar, Button } from '@/components/ui';
 import {
-  Alert,
-  Avatar,
-  Button,
-  Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui';
+  DataTable,
+  initialTableState,
+  type DataTableColumn,
+  type TableState,
+} from '@/components/shared/data-table';
 import { formatDate, initials } from '@/lib/format';
-import { useBlocklistStore } from '../store/use-blocklist-store';
+import { useBlockedVisitors } from '../hooks/use-blocklist';
+import { useBlocklistUiStore } from '../store/use-blocklist-ui-store';
+import type { AdminVisitor } from '../types';
 import { ActionModal } from './action-modal';
 
 export function BlockedVisitors() {
-  const blocked = useBlocklistStore((s) => s.blocked);
-  const isLoading = useBlocklistStore((s) => s.isLoading);
-  const error = useBlocklistStore((s) => s.error);
-  const load = useBlocklistStore((s) => s.load);
-  const requestAction = useBlocklistStore((s) => s.requestAction);
+  const [state, setState] = useState<TableState>(() => initialTableState());
+  const requestAction = useBlocklistUiStore((s) => s.requestAction);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { data, isLoading, isFetching, isError } = useBlockedVisitors({
+    search: state.search,
+    page: state.page,
+    pageSize: state.pageSize,
+  });
+
+  const columns: DataTableColumn<AdminVisitor>[] = [
+    {
+      id: 'visitor',
+      header: 'Visitor',
+      cell: (v) => (
+        <div className="flex items-center gap-3">
+          <Avatar src={v.photoUrl} fallback={initials(v.fullName)} size="sm" />
+          <div className="min-w-0">
+            <p className="truncate font-medium">{v.fullName}</p>
+            <p className="text-xs text-muted-foreground">{v.phone}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'reason',
+      header: 'Reason',
+      className: 'max-w-xs text-muted-foreground',
+      cell: (v) => v.blockReason,
+    },
+    { id: 'blockedBy', header: 'Blocked by', cell: (v) => v.blockedByName ?? '—' },
+    {
+      id: 'blockedAt',
+      header: 'Blocked',
+      className: 'text-muted-foreground',
+      cell: (v) => formatDate(v.blockedAt),
+    },
+    {
+      id: 'action',
+      header: 'Action',
+      align: 'right',
+      cell: (v) => (
+        <Button variant="outline" size="sm" onClick={() => requestAction('unblock', v)}>
+          Remove block
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-4">
-      {error && <Alert variant="destructive">{error}</Alert>}
-
-      {isLoading && blocked.length === 0 ? (
-        <div className="flex items-center justify-center py-16">
-          <Spinner size={28} />
-        </div>
-      ) : blocked.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          No visitors are currently blocked.
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Visitor</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead>Blocked by</TableHead>
-              <TableHead>Blocked</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {blocked.map((visitor) => (
-              <TableRow key={visitor.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar src={visitor.photoUrl} fallback={initials(visitor.fullName)} size="sm" />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{visitor.fullName}</p>
-                      <p className="text-xs text-muted-foreground">{visitor.phone}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="max-w-xs text-muted-foreground">
-                  {visitor.blockReason}
-                </TableCell>
-                <TableCell>{visitor.blockedByName ?? '—'}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDate(visitor.blockedAt)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => requestAction('unblock', visitor)}
-                  >
-                    Remove block
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-
+    <>
+      <DataTable
+        rows={data?.rows ?? []}
+        total={data?.total ?? 0}
+        columns={columns}
+        getRowKey={(v) => v.id}
+        state={state}
+        onStateChange={setState}
+        isLoading={isLoading}
+        isFetching={isFetching}
+        isError={isError}
+        errorText="Could not load the blocklist."
+        emptyText="No visitors are currently blocked."
+        search={{ placeholder: 'Search name or phone…' }}
+      />
       <ActionModal />
-    </div>
+    </>
   );
 }

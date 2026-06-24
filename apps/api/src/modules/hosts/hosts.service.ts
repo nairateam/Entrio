@@ -1,6 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, VisitStatus } from '@prisma/client';
+import { NotificationChannel, NotificationType, Prisma, VisitStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PushService } from '../../integrations/web-push/push.service';
+import { paginated, type PageArgs, type Paginated } from '../../common/pagination';
 import { AuditService } from '../audit/audit.service';
 import type { AddRestrictionDto } from './dto/add-restriction.dto';
 import type { PreRegisterDto } from './dto/pre-register.dto';
@@ -46,7 +48,27 @@ export class HostsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly push: PushService,
   ) {}
+
+  /** Active host users, for the check-in host picker (PRD §4.1.6). */
+  listHosts() {
+    return this.prisma.user.findMany({
+      where: { role: 'host', isActive: true },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        department: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { fullName: 'asc' },
+    });
+  }
 
   async listMyVisits(hostId: string): Promise<HostVisitView[]> {
     const visits = await this.prisma.visit.findMany({
@@ -55,6 +77,52 @@ export class HostsService {
       orderBy: { createdAt: 'desc' },
     });
     return visits.map((v) => this.toVisitView(v));
+  }
+
+  /** Paginated + searchable view of a host's own visits (the My Visitors table). */
+  async listMyVisitsPaged(
+    hostId: string,
+    args: PageArgs,
+    opts: { search?: string; status?: string } = {},
+  ): Promise<Paginated<HostVisitView>> {
+    const q = opts.search?.trim();
+    const statusFilter =
+      opts.status && (Object.values(VisitStatus) as string[]).includes(opts.status)
+        ? (opts.status as VisitStatus)
+        : undefined;
+
+    const where: Prisma.VisitWhereInput = {
+      AND: [
+        { hostId },
+        ...(statusFilter ? [{ status: statusFilter }] : []),
+        ...(q
+          ? [
+              {
+                OR: [
+                  { visitor: { fullName: { contains: q, mode: 'insensitive' as const } } },
+                  { visitor: { phone: { contains: q } } },
+                ],
+              },
+            ]
+          : []),
+      ],
+    };
+
+    const [visits, total] = await this.prisma.$transaction([
+      this.prisma.visit.findMany({
+        where,
+        include: visitInclude,
+        orderBy: { createdAt: 'desc' },
+        skip: args.skip,
+        take: args.take,
+      }),
+      this.prisma.visit.count({ where }),
+    ]);
+    return paginated(
+      visits.map((v) => this.toVisitView(v)),
+      total,
+      args,
+    );
   }
 
   /** Pre-register a visitor for a future visit (PRD §4.4) — status `expected`. */
@@ -100,6 +168,74 @@ export class HostsService {
       targetId: visitId,
     });
     return this.toVisitView(updated);
+  }
+
+  /**
+   * Host replies to the front desk about a visit (PRD §4.5). Notifies the
+   * security user who checked the visitor in, or — if there isn't one yet — every
+   * active security user. Delivered to the in-app bell + a Web Push.
+   */
+  async respondToVisit(
+    visitId: string,
+    hostId: string,
+    message: string,
+  ): Promise<{ recipients: number }> {
+    const visit = await this.prisma.visit.findUnique({
+      where: { id: visitId },
+      include: {
+        visitor: { select: { fullName: true } },
+        host: { select: { fullName: true } },
+      },
+    });
+    if (!visit) throw new NotFoundException('Visit not found.');
+    if (visit.hostId !== hostId) throw new ForbiddenException('This visit is not yours.');
+
+    const body = message.trim();
+
+    let recipientIds: string[];
+    if (visit.checkedInById) {
+      recipientIds = [visit.checkedInById];
+    } else {
+      const security = await this.prisma.user.findMany({
+        where: { role: 'security', isActive: true },
+        select: { id: true },
+      });
+      recipientIds = security.map((u) => u.id);
+    }
+
+    await Promise.all(
+      recipientIds.map((recipientId) =>
+        this.prisma.notification.create({
+          data: {
+            visitId,
+            recipientId,
+            type: NotificationType.host_response,
+            channel: NotificationChannel.in_app,
+            message: body,
+          },
+        }),
+      ),
+    );
+
+    await Promise.all(
+      recipientIds.map((recipientId) =>
+        this.push.sendToUser(recipientId, {
+          title: `${visit.host.fullName} replied`,
+          body: `Re ${visit.visitor.fullName}: ${body}`,
+          url: '/security/board',
+        }),
+      ),
+    );
+
+    await this.audit.log({
+      actorId: hostId,
+      action: 'visit.host_responded',
+      targetType: 'visit',
+      targetId: visitId,
+      meta: { recipients: recipientIds.length },
+    });
+
+    return { recipients: recipientIds.length };
   }
 
   // --- host restrictions (PRD §4.11) ---------------------------------------

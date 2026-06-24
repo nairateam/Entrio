@@ -13,10 +13,19 @@ const PRISMA_TO_USER_ROLE: Record<PrismaUserRole, UserRole> = {
   security: UserRole.SECURITY,
   host: UserRole.HOST,
   admin: UserRole.ADMIN,
-  super_admin: UserRole.SUPER_ADMIN,
-  supervisor: UserRole.SUPERVISOR,
 };
 
 export function toUserRole(role: PrismaUserRole): UserRole {
   return PRISMA_TO_USER_ROLE[role];
+}
+
+const USER_ROLE_TO_PRISMA: Record<UserRole, PrismaUserRole> = {
+  [UserRole.SECURITY]: 'security',
+  [UserRole.HOST]: 'host',
+  [UserRole.ADMIN]: 'admin',
+};
+
+/** `@entrio/types` UserRole → Prisma's generated UserRole (for writes). */
+export function toPrismaRole(role: UserRole): PrismaUserRole {
+  return USER_ROLE_TO_PRISMA[role];
 }

@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { paginated, type PageArgs, type Paginated } from '../../common/pagination';
 
 const actorSelect = {
   blockedBy: { select: { fullName: true } },
@@ -33,22 +34,52 @@ export class BlocklistService {
     private readonly audit: AuditService,
   ) {}
 
-  async listBlocked(): Promise<AdminVisitorView[]> {
-    const rows = await this.prisma.visitor.findMany({
-      where: { isBlocked: true },
-      include: actorSelect,
-      orderBy: { blockedAt: 'desc' },
-    });
-    return rows.map((v) => this.toView(v));
+  listBlocked(args: PageArgs, search?: string): Promise<Paginated<AdminVisitorView>> {
+    return this.listByFlag({ isBlocked: true }, { blockedAt: 'desc' }, args, search);
   }
 
-  async listFlagged(): Promise<AdminVisitorView[]> {
-    const rows = await this.prisma.visitor.findMany({
-      where: { isFlagged: true },
-      include: actorSelect,
-      orderBy: { flaggedAt: 'desc' },
-    });
-    return rows.map((v) => this.toView(v));
+  listFlagged(args: PageArgs, search?: string): Promise<Paginated<AdminVisitorView>> {
+    return this.listByFlag({ isFlagged: true }, { flaggedAt: 'desc' }, args, search);
+  }
+
+  private async listByFlag(
+    base: Prisma.VisitorWhereInput,
+    orderBy: Prisma.VisitorOrderByWithRelationInput,
+    args: PageArgs,
+    search?: string,
+  ): Promise<Paginated<AdminVisitorView>> {
+    const q = search?.trim();
+    const where: Prisma.VisitorWhereInput = {
+      AND: [
+        base,
+        ...(q
+          ? [
+              {
+                OR: [
+                  { fullName: { contains: q, mode: 'insensitive' as const } },
+                  { phone: { contains: q } },
+                ],
+              },
+            ]
+          : []),
+      ],
+    };
+
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.visitor.findMany({
+        where,
+        include: actorSelect,
+        orderBy,
+        skip: args.skip,
+        take: args.take,
+      }),
+      this.prisma.visitor.count({ where }),
+    ]);
+    return paginated(
+      rows.map((v) => this.toView(v)),
+      total,
+      args,
+    );
   }
 
   /** Building-wide block (PRD §4.7/§4.12). Escalating a flag also clears it. */

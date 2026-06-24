@@ -22,11 +22,13 @@ export function DisambiguationStep() {
       </div>
 
       <ul className="space-y-2">
-        {results.map(({ visitor, lastVisitAt }) => (
+        {results.map((result) => {
+          const { visitor, lastVisitAt } = result;
+          return (
           <li key={visitor.id}>
             <button
               type="button"
-              onClick={() => selectMatch(visitor)}
+              onClick={() => selectMatch(result)}
               className={cn(
                 'flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors',
                 'hover:border-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -39,10 +41,12 @@ export function DisambiguationStep() {
                   Phone ending ••{last4(visitor.phone)} · Last visit {formatDate(lastVisitAt)}
                 </p>
               </div>
+              {result.expectedVisit && <Badge variant="secondary">Expected</Badge>}
               {visitor.isFlagged && <Badge variant="warning">Flagged</Badge>}
             </button>
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       <div className="flex items-center justify-between pt-2">

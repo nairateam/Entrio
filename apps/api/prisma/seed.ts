@@ -1,4 +1,10 @@
-import { PrismaClient, UserRole, VisitStatus } from '@prisma/client';
+import {
+  NotificationChannel,
+  NotificationType,
+  PrismaClient,
+  UserRole,
+  VisitStatus,
+} from '@prisma/client';
 import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
@@ -69,8 +75,9 @@ async function main() {
   });
 
   // One checked-in visit so the board has data on a fresh DB.
-  if ((await prisma.visit.count()) === 0) {
-    await prisma.visit.create({
+  let sampleVisit = await prisma.visit.findFirst({ where: { status: VisitStatus.checked_in } });
+  if (!sampleVisit) {
+    sampleVisit = await prisma.visit.create({
       data: {
         visitorId: maria.id,
         hostId,
@@ -78,12 +85,37 @@ async function main() {
         status: VisitStatus.checked_in,
         checkInTime: new Date(),
         checkedInById: usersByEmail.get('security@entrio.dev')!,
-        badgeCode: 'ENT-SEED01',
       },
     });
   }
 
-  console.log('Seed complete: users, working hours, visitors, and a sample visit.');
+  // Demo inbox items across types/recipients.
+  if ((await prisma.notification.count()) === 0) {
+    await prisma.notification.createMany({
+      data: [
+        {
+          visitId: sampleVisit.id,
+          recipientId: hostId,
+          type: NotificationType.arrival_alert,
+          channel: NotificationChannel.in_app,
+        },
+        {
+          visitId: sampleVisit.id,
+          recipientId: adminId,
+          type: NotificationType.override_request,
+          channel: NotificationChannel.in_app,
+        },
+        {
+          visitId: sampleVisit.id,
+          recipientId: adminId,
+          type: NotificationType.overstay_alert,
+          channel: NotificationChannel.in_app,
+        },
+      ],
+    });
+  }
+
+  console.log('Seed complete: users, working hours, visitors, a sample visit, and notifications.');
 }
 
 main()

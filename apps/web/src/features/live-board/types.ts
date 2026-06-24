@@ -7,6 +7,7 @@ import type { VisitStatus } from '@entrio/types';
  */
 export interface BoardVisit {
   id: string;
+  visitorId: string;
   visitorName: string;
   visitorPhone: string;
   photoUrl: string | null;
@@ -16,7 +17,8 @@ export interface BoardVisit {
   checkInTime: string | null;
   checkOutTime: string | null;
   expectedTime: string | null;
-  badgeCode: string | null;
+  /** The host's latest reply to the front desk about this visit, if any. */
+  hostResponse: string | null;
 }
 
 /** Status filter for the full board; 'all' shows everything. */

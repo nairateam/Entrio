@@ -10,9 +10,9 @@ import { OverridesService } from './overrides.service';
 
 type AuthUser = { id: string; role: UserRole };
 
-// Front-desk can request; supervisors/admins approve or deny (PRD §2.1, §4.8).
-const REQUESTERS = [UserRole.SECURITY, UserRole.SUPERVISOR, UserRole.ADMIN, UserRole.SUPER_ADMIN];
-const APPROVERS = [UserRole.SUPERVISOR, UserRole.ADMIN, UserRole.SUPER_ADMIN];
+// Security requests; Admin approves or denies (PRD §2.1, §4.8).
+const REQUESTERS = [UserRole.SECURITY, UserRole.ADMIN];
+const APPROVERS = [UserRole.ADMIN];
 
 @ApiTags('overrides')
 @Controller('overrides')
