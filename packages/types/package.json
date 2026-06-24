@@ -1,0 +1,26 @@
+{
+  "name": "@entrio/types",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist .turbo",
+    "lint": "eslint src --ext .ts"
+  },
+  "devDependencies": {
+    "@entrio/config": "workspace:*",
+    "eslint": "^8.57.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.5.4"
+  }
+}

@@ -1,0 +1,263 @@
+// Entrio VMS — Prisma schema (PRD §3 data model).
+// Conventions: camelCase model fields map to snake_case columns (@map) and
+// snake_case plural tables (@@map). Enum values match the string values in
+// @entrio/types so API responses line up with the shared types.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums (mirror packages/types/src/enums.ts) ----------------------------
+
+enum UserRole {
+  security
+  host
+  admin
+  super_admin
+  supervisor
+}
+
+enum VisitStatus {
+  expected
+  checked_in
+  checked_out
+  no_show
+  denied
+}
+
+enum NotificationType {
+  arrival_alert
+  override_request
+  override_approved
+  overstay_alert
+}
+
+enum NotificationChannel {
+  sms
+  email
+  in_app
+}
+
+enum NotificationStatus {
+  sent
+  delivered
+  failed
+}
+
+enum OverrideStatus {
+  pending
+  approved
+  denied
+}
+
+// --- Models ----------------------------------------------------------------
+
+/// Anyone with a login (Security, Host, Admin, Super Admin, Supervisor).
+model User {
+  id           String   @id @default(cuid())
+  fullName     String   @map("full_name")
+  email        String   @unique
+  phone        String?
+  role         UserRole
+  department   String?
+  isActive     Boolean  @default(true) @map("is_active")
+  /// argon2 hash — never exposed via the API/@entrio/types.
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Back-relations
+  visitsAsHost            Visit[]                  @relation("VisitHost")
+  visitsCheckedIn         Visit[]                  @relation("VisitCheckedInBy")
+  visitsCheckedOut        Visit[]                  @relation("VisitCheckedOutBy")
+  visitsOverrideApproved  Visit[]                  @relation("VisitOverrideApprovedBy")
+  visitorsBlocked         Visitor[]                @relation("VisitorBlockedBy")
+  visitorsFlagged         Visitor[]                @relation("VisitorFlaggedBy")
+  workingHoursUpdated     WorkingHour[]            @relation("WorkingHourUpdatedBy")
+  blackoutDatesCreated    BlackoutDate[]           @relation("BlackoutCreatedBy")
+  restrictionsAsHost      HostVisitorRestriction[] @relation("RestrictionHost")
+  auditLogs               AuditLog[]               @relation("AuditActor")
+  notificationsReceived   Notification[]           @relation("NotificationRecipient")
+  overridesHosted         OverrideRequest[]        @relation("OverrideHost")
+  overridesRequested      OverrideRequest[]        @relation("OverrideRequestedBy")
+  overridesResolved       OverrideRequest[]        @relation("OverrideResolvedBy")
+
+  @@map("users")
+}
+
+/// A person who visits the facility, reused across multiple visits.
+model Visitor {
+  id          String    @id @default(cuid())
+  fullName    String    @map("full_name")
+  phone       String
+  email       String?
+  photoUrl    String?   @map("photo_url")
+  isBlocked   Boolean   @default(false) @map("is_blocked")
+  blockReason String?   @map("block_reason")
+  blockedById String?   @map("blocked_by")
+  blockedAt   DateTime? @map("blocked_at")
+  isFlagged   Boolean   @default(false) @map("is_flagged")
+  flaggedById String?   @map("flagged_by")
+  flaggedAt   DateTime? @map("flagged_at")
+  flagNote    String?   @map("flag_note")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  blockedBy        User?                    @relation("VisitorBlockedBy", fields: [blockedById], references: [id])
+  flaggedBy        User?                    @relation("VisitorFlaggedBy", fields: [flaggedById], references: [id])
+  visits           Visit[]
+  restrictions     HostVisitorRestriction[]
+  overrideRequests OverrideRequest[]
+
+  // Prevents accidental duplicates while allowing two different people to share a name.
+  @@unique([fullName, phone])
+  @@index([fullName])
+  @@index([phone])
+  @@index([isBlocked])
+  @@map("visitors")
+}
+
+/// One visitor, one check-in event. Most-queried table in the system.
+model Visit {
+  id                    String      @id @default(cuid())
+  visitorId             String      @map("visitor_id")
+  hostId                String      @map("host_id")
+  checkedInById         String?     @map("checked_in_by")
+  checkedOutById        String?     @map("checked_out_by")
+  purpose               String?
+  status                VisitStatus @default(expected)
+  checkInTime           DateTime?   @map("check_in_time")
+  checkOutTime          DateTime?   @map("check_out_time")
+  expectedTime          DateTime?   @map("expected_time")
+  badgeCode             String?     @unique @map("badge_code")
+  isOverride            Boolean     @default(false) @map("is_override")
+  overrideApprovedById  String?     @map("override_approved_by")
+  /// Host tapped "On My Way" after arrival (PRD §4.5).
+  hostOnWay             Boolean     @default(false) @map("host_on_way")
+  notes                 String?
+  createdAt             DateTime    @default(now()) @map("created_at")
+
+  visitor            Visitor        @relation(fields: [visitorId], references: [id])
+  host               User           @relation("VisitHost", fields: [hostId], references: [id])
+  checkedInBy        User?          @relation("VisitCheckedInBy", fields: [checkedInById], references: [id])
+  checkedOutBy       User?          @relation("VisitCheckedOutBy", fields: [checkedOutById], references: [id])
+  overrideApprovedBy User?          @relation("VisitOverrideApprovedBy", fields: [overrideApprovedById], references: [id])
+  notifications      Notification[]
+  overrideRequest    OverrideRequest?
+
+  @@index([status])
+  @@index([checkInTime])
+  @@index([hostId])
+  @@index([visitorId])
+  @@map("visits")
+}
+
+/// When the facility is open (one row per weekday).
+model WorkingHour {
+  id          String   @id @default(cuid())
+  dayOfWeek   Int      @map("day_of_week")
+  openTime    String   @map("open_time")
+  closeTime   String   @map("close_time")
+  isActive    Boolean  @default(true) @map("is_active")
+  updatedById String?  @map("updated_by")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  updatedBy User? @relation("WorkingHourUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([dayOfWeek])
+  @@map("working_hours")
+}
+
+/// Holidays/closures that override working hours.
+model BlackoutDate {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  reason      String
+  createdById String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  createdBy User? @relation("BlackoutCreatedBy", fields: [createdById], references: [id])
+
+  @@map("blackout_dates")
+}
+
+/// Log of every notification sent.
+model Notification {
+  id          String             @id @default(cuid())
+  visitId     String             @map("visit_id")
+  recipientId String             @map("recipient_id")
+  type        NotificationType
+  channel     NotificationChannel
+  status      NotificationStatus @default(sent)
+  sentAt      DateTime           @default(now()) @map("sent_at")
+
+  visit     Visit @relation(fields: [visitId], references: [id])
+  recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id])
+
+  @@index([recipientId])
+  @@map("notifications")
+}
+
+/// Immutable record of every action. Never edited or deleted.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?  @map("actor_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  meta       Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/// Host-specific "do not send this visitor to me" list (distinct from a block).
+model HostVisitorRestriction {
+  id        String   @id @default(cuid())
+  hostId    String   @map("host_id")
+  visitorId String   @map("visitor_id")
+  /// Private, Admin-visible only.
+  reason    String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  host    User    @relation("RestrictionHost", fields: [hostId], references: [id])
+  visitor Visitor @relation(fields: [visitorId], references: [id])
+
+  @@unique([hostId, visitorId])
+  @@index([hostId])
+  @@map("host_visitor_restrictions")
+}
+
+/// A working-hours override request (PRD §4.8). Not in §3's table list, but the
+/// approval flow needs to persist pending requests (no "pending" VisitStatus).
+model OverrideRequest {
+  id            String         @id @default(cuid())
+  visitorId     String         @map("visitor_id")
+  hostId        String         @map("host_id")
+  requestedById String         @map("requested_by")
+  reason        String
+  status        OverrideStatus @default(pending)
+  resolvedById  String?        @map("resolved_by")
+  resolvedAt    DateTime?      @map("resolved_at")
+  /// Set when an approved override is consumed by a check-in (one-time use).
+  visitId       String?        @unique @map("visit_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  visitor     Visitor @relation(fields: [visitorId], references: [id])
+  host        User    @relation("OverrideHost", fields: [hostId], references: [id])
+  requestedBy User    @relation("OverrideRequestedBy", fields: [requestedById], references: [id])
+  resolvedBy  User?   @relation("OverrideResolvedBy", fields: [resolvedById], references: [id])
+  visit       Visit?  @relation(fields: [visitId], references: [id])
+
+  @@index([status])
+  @@map("override_requests")
+}
