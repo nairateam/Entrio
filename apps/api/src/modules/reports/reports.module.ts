@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
+import { ReportsController } from './reports.controller';
+import { ReportsService } from './reports.service';
 
 /**
- * Reports module — see PRD §2/§3/§4.
- * Controllers/services/DTOs to be implemented.
+ * Reports module — admin reporting dashboard aggregation + filter options
+ * (PRD §4.9). Read-only.
  */
 @Module({
-  controllers: [],
-  providers: [],
-  exports: [],
+  controllers: [ReportsController],
+  providers: [ReportsService],
+  exports: [ReportsService],
 })
 export class ReportsModule {}

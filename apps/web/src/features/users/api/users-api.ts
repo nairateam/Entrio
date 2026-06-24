@@ -1,49 +1,35 @@
-import type { User } from '@entrio/types';
-import { MOCK_USERS } from '../fixtures';
+import type { Paginated, User } from '@entrio/types';
+import { apiFetch } from '@/lib/api/client';
 import type { InviteInput } from '../schema';
 
-/**
- * User-management data access layer.
- *
- * Seams for the real API. Each mock body becomes a single `apiFetch<T>(...)`:
- *   return apiFetch<User[]>('/api/users');
- *   return apiFetch<User>(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify({ isActive }) });
- *   return apiFetch<User>('/api/users', { method: 'POST', body: JSON.stringify(input) });
- */
+/** User-management data access layer (admin). */
 
-const SIMULATED_LATENCY_MS = 300;
-const wait = (ms = SIMULATED_LATENCY_MS) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-let users: User[] = MOCK_USERS.map((u) => ({ ...u }));
-
-export async function getUsers(): Promise<User[]> {
-  await wait();
-  return users.map((u) => ({ ...u }));
+export interface UsersQuery {
+  search: string;
+  role: string;
+  page: number;
+  pageSize: number;
 }
 
-export async function setUserActive(id: string, isActive: boolean): Promise<User> {
-  await wait(200);
-  const target = users.find((u) => u.id === id);
-  if (!target) throw new Error(`User ${id} not found`);
-  const updated = { ...target, isActive, updatedAt: new Date().toISOString() };
-  users = users.map((u) => (u.id === id ? updated : u));
-  return { ...updated };
+export function getUsers(q: UsersQuery): Promise<Paginated<User>> {
+  const params = new URLSearchParams({ page: String(q.page), pageSize: String(q.pageSize) });
+  if (q.search) params.set('search', q.search);
+  if (q.role && q.role !== 'all') params.set('role', q.role);
+  return apiFetch<Paginated<User>>(`/api/users?${params.toString()}`);
 }
 
-export async function inviteUser(input: InviteInput): Promise<User> {
-  await wait(400);
-  const now = new Date().toISOString();
-  const created: User = {
-    id: `user-${Date.now()}`,
-    fullName: input.fullName.trim(),
-    email: input.email.trim(),
-    phone: null,
-    role: input.role,
-    department: input.department?.trim() || null,
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-  };
-  users = [created, ...users];
-  return { ...created };
+export function setUserActive(id: string, isActive: boolean): Promise<User> {
+  return apiFetch<User>(`/api/users/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive }),
+  });
+}
+
+export function inviteUser(input: InviteInput): Promise<User> {
+  return apiFetch<User>('/api/users', { method: 'POST', body: JSON.stringify(input) });
+}
+
+/** Admin-managed department options for the invite form's dropdown. */
+export function getDepartmentOptions(): Promise<Array<{ id: string; name: string }>> {
+  return apiFetch<Array<{ id: string; name: string }>>('/api/departments');
 }

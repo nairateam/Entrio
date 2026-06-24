@@ -10,18 +10,32 @@ import {
   ModalHeader,
   ModalTitle,
   Textarea,
+  toast,
 } from '@/components/ui';
-import { useLiveBoardStore } from '../store/use-live-board-store';
+import { useFlagVisitor } from '../hooks/use-live-board';
+import { useLiveBoardUiStore } from '../store/use-live-board-ui-store';
 
 export function FlagModal() {
-  const pending = useLiveBoardStore((s) => s.pendingFlag);
-  const note = useLiveBoardStore((s) => s.flagNote);
-  const setNote = useLiveBoardStore((s) => s.setFlagNote);
-  const cancel = useLiveBoardStore((s) => s.cancelFlag);
-  const confirm = useLiveBoardStore((s) => s.confirmFlag);
-  const isFlagging = useLiveBoardStore((s) => s.isFlagging);
+  const pending = useLiveBoardUiStore((s) => s.pendingFlag);
+  const note = useLiveBoardUiStore((s) => s.flagNote);
+  const setNote = useLiveBoardUiStore((s) => s.setFlagNote);
+  const cancel = useLiveBoardUiStore((s) => s.cancelFlag);
+  const flagVisitor = useFlagVisitor();
 
   if (!pending) return null;
+
+  const confirm = () => {
+    flagVisitor.mutate(
+      { visitorId: pending.visitorId, note: note.trim() },
+      {
+        onSuccess: () => {
+          toast.success(`${pending.visitorName} flagged for review.`);
+          cancel();
+        },
+        onError: () => toast.error('Could not flag the visitor.'),
+      },
+    );
+  };
 
   return (
     <Modal open onClose={cancel} size="md" ariaLabel={`Flag ${pending.visitorName}`}>
@@ -30,7 +44,7 @@ export function FlagModal() {
       </ModalHeader>
       <ModalBody className="space-y-3">
         <Alert variant="info">
-          Flagging escalates this visitor to a supervisor/admin for review. It does not block entry.
+          Flagging escalates this visitor to an admin for review. It does not block entry.
         </Alert>
         <div className="space-y-1.5">
           <Label htmlFor="flag-note" required>
@@ -45,10 +59,10 @@ export function FlagModal() {
         </div>
       </ModalBody>
       <ModalFooter>
-        <Button variant="ghost" onClick={cancel} disabled={isFlagging}>
+        <Button variant="ghost" onClick={cancel} disabled={flagVisitor.isPending}>
           Cancel
         </Button>
-        <Button onClick={() => void confirm()} isLoading={isFlagging} disabled={!note.trim()}>
+        <Button onClick={confirm} isLoading={flagVisitor.isPending} disabled={!note.trim()}>
           Flag visitor
         </Button>
       </ModalFooter>

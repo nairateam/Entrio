@@ -1,32 +1,41 @@
-import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@entrio/types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { parsePageArgs } from '../../common/pagination';
 import { BlocklistService } from './blocklist.service';
 import { BlockVisitorDto } from './dto/block-visitor.dto';
 
 type AuthUser = { id: string; role: UserRole };
 
-// View/manage blocklist + flagged is Supervisor / Admin / Super Admin (PRD §2.1).
+// View/manage blocklist + flagged is Admin only (PRD §2.1).
 // Security can raise a flag (POST /visitors/:id/flag) but cannot block.
 @ApiTags('blocklist')
 @Controller('blocklist')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.SUPERVISOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+@Roles(UserRole.ADMIN)
 export class BlocklistController {
   constructor(private readonly blocklist: BlocklistService) {}
 
   @Get()
-  listBlocked() {
-    return this.blocklist.listBlocked();
+  listBlocked(
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.blocklist.listBlocked(parsePageArgs(page, pageSize), search);
   }
 
   @Get('flagged')
-  listFlagged() {
-    return this.blocklist.listFlagged();
+  listFlagged(
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.blocklist.listFlagged(parsePageArgs(page, pageSize), search);
   }
 
   @Post(':visitorId/block')

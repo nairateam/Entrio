@@ -1,44 +1,36 @@
-import { MOCK_BLACKOUT_DATES, MOCK_WORKING_HOURS } from '../fixtures';
+import { apiFetch } from '@/lib/api/client';
 import type { BlackoutDate, WorkingHour } from '../types';
 
-/**
- * Working-hours data access layer.
- *
- * Seams for the real API. Each mock body becomes a single `apiFetch<T>(...)`:
- *   return apiFetch<WorkingHour[]>('/api/working-hours');
- *   return apiFetch<WorkingHour[]>('/api/working-hours', { method: 'PUT', body: JSON.stringify(hours) });
- */
+/** Working-hours data access layer (PRD §3 / §4.8). */
 
-const SIMULATED_LATENCY_MS = 300;
-const wait = (ms = SIMULATED_LATENCY_MS) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-let hours: WorkingHour[] = MOCK_WORKING_HOURS.map((h) => ({ ...h }));
-let blackouts: BlackoutDate[] = MOCK_BLACKOUT_DATES.map((b) => ({ ...b }));
-
-export async function getWorkingHours(): Promise<WorkingHour[]> {
-  await wait();
-  return hours.map((h) => ({ ...h }));
+export function getWorkingHours(): Promise<WorkingHour[]> {
+  return apiFetch<WorkingHour[]>('/api/working-hours');
 }
 
+/** The API upserts per day, so save each day and return the updated set. */
 export async function updateWorkingHours(next: WorkingHour[]): Promise<WorkingHour[]> {
-  await wait(400);
-  hours = next.map((h) => ({ ...h }));
-  return hours.map((h) => ({ ...h }));
+  const saved = await Promise.all(
+    next.map((h) =>
+      apiFetch<WorkingHour>(`/api/working-hours/${h.dayOfWeek}`, {
+        method: 'PUT',
+        body: JSON.stringify({ openTime: h.openTime, closeTime: h.closeTime, isActive: h.isActive }),
+      }),
+    ),
+  );
+  return saved.sort((a, b) => a.dayOfWeek - b.dayOfWeek);
 }
 
-export async function getBlackoutDates(): Promise<BlackoutDate[]> {
-  await wait();
-  return blackouts.map((b) => ({ ...b }));
+export function getBlackoutDates(): Promise<BlackoutDate[]> {
+  return apiFetch<BlackoutDate[]>('/api/working-hours/blackouts');
 }
 
-export async function addBlackoutDate(input: { date: string; reason: string }): Promise<BlackoutDate> {
-  await wait();
-  const created: BlackoutDate = { id: `bo-${Date.now()}`, date: input.date, reason: input.reason.trim() };
-  blackouts = [...blackouts, created].sort((a, b) => a.date.localeCompare(b.date));
-  return { ...created };
+export function addBlackoutDate(input: { date: string; reason: string }): Promise<BlackoutDate> {
+  return apiFetch<BlackoutDate>('/api/working-hours/blackouts', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
-export async function removeBlackoutDate(id: string): Promise<void> {
-  await wait();
-  blackouts = blackouts.filter((b) => b.id !== id);
+export function removeBlackoutDate(id: string): Promise<void> {
+  return apiFetch<void>(`/api/working-hours/blackouts/${id}`, { method: 'DELETE' });
 }

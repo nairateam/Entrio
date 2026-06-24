@@ -8,12 +8,10 @@ import { formatDateTime } from '@/lib/format';
 export function ConfirmationStep() {
   const result = useCheckInStore((s) => s.result);
   const selectedVisitor = useCheckInStore((s) => s.selectedVisitor);
-  const hosts = useCheckInStore((s) => s.hosts);
   const reset = useCheckInStore((s) => s.reset);
 
   if (!result) return null;
   const { visit } = result;
-  const host = hosts.find((h) => h.id === visit.hostId);
 
   return (
     <div className="space-y-5 text-center">
@@ -27,12 +25,8 @@ export function ConfirmationStep() {
 
       <dl className="mx-auto max-w-sm space-y-2 rounded-lg border border-border p-4 text-left text-sm">
         <div className="flex justify-between gap-4">
-          <dt className="text-muted-foreground">Badge</dt>
-          <dd className="font-mono font-medium">{visit.badgeCode}</dd>
-        </div>
-        <div className="flex justify-between gap-4">
           <dt className="text-muted-foreground">Host</dt>
-          <dd className="font-medium">{host?.fullName ?? '—'}</dd>
+          <dd className="font-medium">{visit.hostName}</dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-muted-foreground">Purpose</dt>
@@ -46,11 +40,6 @@ export function ConfirmationStep() {
           <dt className="text-muted-foreground">Status</dt>
           <dd>
             <Badge variant="success">{visit.status}</Badge>
-            {visit.isOverride && (
-              <Badge variant="warning" className="ml-1">
-                override
-              </Badge>
-            )}
           </dd>
         </div>
       </dl>

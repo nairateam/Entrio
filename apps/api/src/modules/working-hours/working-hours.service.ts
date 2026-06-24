@@ -94,23 +94,39 @@ export class WorkingHoursService {
 
   // --- shared gate (PRD §4.8) ----------------------------------------------
 
-  /**
-   * Whether the facility is open at `at`: not a blackout date, and within the
-   * day's active hours. Reused by the check-in flow (VisitsService).
-   */
+  /** Open if today isn't a blackout date and now falls within the day's active hours. */
   async isOpenAt(at: Date): Promise<boolean> {
+    return (await this.statusAt(at)).isOpen;
+  }
+
+  /**
+   * Full open/closed status at `at` (PRD §4.8) — for the check-in working-hours
+   * step. Reused via `isOpenAt` by the check-in gate (VisitsService).
+   */
+  async statusAt(at: Date): Promise<{
+    isOpen: boolean;
+    dayLabel: string;
+    opensAt: string | null;
+    closesAt: string | null;
+  }> {
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayLabel = dayNames[at.getDay()] ?? 'Today';
+
     const dateOnly = new Date(Date.UTC(at.getFullYear(), at.getMonth(), at.getDate()));
     const blackout = await this.prisma.blackoutDate.findFirst({ where: { date: dateOnly } });
-    if (blackout) return false;
-
     const rule = await this.prisma.workingHour.findUnique({ where: { dayOfWeek: at.getDay() } });
-    if (!rule || !rule.isActive) return false;
+
+    if (blackout || !rule || !rule.isActive) {
+      return { isOpen: false, dayLabel, opensAt: rule?.openTime ?? null, closesAt: rule?.closeTime ?? null };
+    }
 
     const minutesNow = at.getHours() * 60 + at.getMinutes();
     const toMinutes = (hhmm: string) => {
       const [h, m] = hhmm.split(':').map(Number);
       return (h ?? 0) * 60 + (m ?? 0);
     };
-    return minutesNow >= toMinutes(rule.openTime) && minutesNow < toMinutes(rule.closeTime);
+    const isOpen =
+      minutesNow >= toMinutes(rule.openTime) && minutesNow < toMinutes(rule.closeTime);
+    return { isOpen, dayLabel, opensAt: rule.openTime, closesAt: rule.closeTime };
   }
 }

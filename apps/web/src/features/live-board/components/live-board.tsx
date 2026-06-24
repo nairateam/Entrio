@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { ShieldAlert, Users } from 'lucide-react';
 import {
   Alert,
@@ -13,7 +13,8 @@ import {
 } from '@/components/ui';
 import { STATUS_LABELS } from '@/components/shared/visit-status-badge';
 import { cn } from '@/lib/utils';
-import { useLiveBoardStore } from '../store/use-live-board-store';
+import { useTodayVisits } from '../hooks/use-live-board';
+import { useLiveBoardUiStore } from '../store/use-live-board-ui-store';
 import { STATUS_FILTER_OPTIONS, filterVisits, insideVisits } from '../utils';
 import type { BoardView } from '../types';
 import { VisitsTable } from './visits-table';
@@ -22,22 +23,15 @@ import { CheckOutModal } from './check-out-modal';
 import { FlagModal } from './flag-modal';
 
 export function LiveBoard() {
-  const visits = useLiveBoardStore((s) => s.visits);
-  const isLoading = useLiveBoardStore((s) => s.isLoading);
-  const error = useLiveBoardStore((s) => s.error);
-  const query = useLiveBoardStore((s) => s.query);
-  const statusFilter = useLiveBoardStore((s) => s.statusFilter);
-  const view = useLiveBoardStore((s) => s.view);
-  const setQuery = useLiveBoardStore((s) => s.setQuery);
-  const setStatusFilter = useLiveBoardStore((s) => s.setStatusFilter);
-  const setView = useLiveBoardStore((s) => s.setView);
-  const requestCheckout = useLiveBoardStore((s) => s.requestCheckout);
-  const requestFlag = useLiveBoardStore((s) => s.requestFlag);
-  const load = useLiveBoardStore((s) => s.load);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { data: visits = [], isLoading, isError } = useTodayVisits();
+  const query = useLiveBoardUiStore((s) => s.query);
+  const statusFilter = useLiveBoardUiStore((s) => s.statusFilter);
+  const view = useLiveBoardUiStore((s) => s.view);
+  const setQuery = useLiveBoardUiStore((s) => s.setQuery);
+  const setStatusFilter = useLiveBoardUiStore((s) => s.setStatusFilter);
+  const setView = useLiveBoardUiStore((s) => s.setView);
+  const requestCheckout = useLiveBoardUiStore((s) => s.requestCheckout);
+  const requestFlag = useLiveBoardUiStore((s) => s.requestFlag);
 
   const inside = useMemo(() => insideVisits(visits), [visits]);
   const filtered = useMemo(
@@ -47,7 +41,7 @@ export function LiveBoard() {
 
   return (
     <div className="space-y-6">
-      {error && <Alert variant="destructive">{error}</Alert>}
+      {isError && <Alert variant="destructive">Could not load today’s visits.</Alert>}
 
       {/* Prominent "Who's Inside Now" summary — always visible (PRD §4.10). */}
       <Card>
@@ -90,7 +84,7 @@ export function LiveBoard() {
         ))}
       </div>
 
-      {isLoading ? (
+      {isLoading && visits.length === 0 ? (
         <div className="flex items-center justify-center py-16">
           <Spinner size={28} />
         </div>
@@ -101,7 +95,7 @@ export function LiveBoard() {
           <div className="flex flex-wrap gap-3">
             <Input
               className="max-w-xs"
-              placeholder="Search name, host, phone, badge…"
+              placeholder="Search name, host, phone…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />

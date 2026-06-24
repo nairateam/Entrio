@@ -7,15 +7,27 @@ import {
   ModalFooter,
   ModalHeader,
   ModalTitle,
+  toast,
 } from '@/components/ui';
 import { formatDuration, formatTime } from '@/lib/format';
-import { useLiveBoardStore } from '../store/use-live-board-store';
+import { useCheckOut } from '../hooks/use-live-board';
+import { useLiveBoardUiStore } from '../store/use-live-board-ui-store';
 
 export function CheckOutModal() {
-  const pending = useLiveBoardStore((s) => s.pendingCheckout);
-  const isCheckingOut = useLiveBoardStore((s) => s.isCheckingOut);
-  const cancel = useLiveBoardStore((s) => s.cancelCheckout);
-  const confirm = useLiveBoardStore((s) => s.confirmCheckout);
+  const pending = useLiveBoardUiStore((s) => s.pendingCheckout);
+  const cancel = useLiveBoardUiStore((s) => s.cancelCheckout);
+  const checkOut = useCheckOut();
+
+  const confirm = () => {
+    if (!pending) return;
+    checkOut.mutate(pending.id, {
+      onSuccess: () => {
+        toast.success(`${pending.visitorName} checked out.`);
+        cancel();
+      },
+      onError: () => toast.error('Check-out failed. Please try again.'),
+    });
+  };
 
   return (
     <Modal open={Boolean(pending)} onClose={cancel} size="sm" ariaLabel="Confirm check-out">
@@ -38,10 +50,10 @@ export function CheckOutModal() {
             </p>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" onClick={cancel} disabled={isCheckingOut}>
+            <Button variant="ghost" onClick={cancel} disabled={checkOut.isPending}>
               Cancel
             </Button>
-            <Button onClick={() => void confirm()} isLoading={isCheckingOut}>
+            <Button onClick={confirm} isLoading={checkOut.isPending}>
               Confirm check-out
             </Button>
           </ModalFooter>

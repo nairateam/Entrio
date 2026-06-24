@@ -19,8 +19,8 @@ import { VisitorsService } from './visitors.service';
 
 type AuthUser = { id: string; role: UserRole };
 
-// Front-desk + management roles operate on visitors; hosts pre-register elsewhere.
-const FRONT_DESK = [UserRole.SECURITY, UserRole.SUPERVISOR, UserRole.ADMIN, UserRole.SUPER_ADMIN];
+// Front-desk + admin operate on visitors; hosts pre-register elsewhere.
+const FRONT_DESK = [UserRole.SECURITY, UserRole.ADMIN];
 
 @ApiTags('visitors')
 @Controller('visitors')

@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { CalendarPlus } from 'lucide-react';
 import { Alert, Button, Spinner } from '@/components/ui';
-import { MOCK_CURRENT_HOST } from '../api/hosts-api';
-import { useHostStore } from '../store/use-host-store';
+import { useHostVisits } from '../hooks/use-hosts';
 import { recentVisits, upcomingVisits } from '../utils';
 import type { HostVisit } from '../types';
 import { VisitCard } from './visit-card';
@@ -40,14 +39,7 @@ function Section({
 }
 
 export function HostDashboard() {
-  const visits = useHostStore((s) => s.visits);
-  const isLoading = useHostStore((s) => s.isLoading);
-  const error = useHostStore((s) => s.error);
-  const load = useHostStore((s) => s.load);
-
-  useEffect(() => {
-    void load(MOCK_CURRENT_HOST.id);
-  }, [load]);
+  const { data: visits = [], isLoading, isError } = useHostVisits();
 
   const upcoming = useMemo(() => upcomingVisits(visits), [visits]);
   const recent = useMemo(() => recentVisits(visits), [visits]);
@@ -63,7 +55,7 @@ export function HostDashboard() {
         </Button>
       </div>
 
-      {error && <Alert variant="destructive">{error}</Alert>}
+      {isError && <Alert variant="destructive">Could not load your visits.</Alert>}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">

@@ -17,36 +17,36 @@ import {
 } from '@/components/ui';
 import { ROLE_LABELS } from '@/config/navigation';
 import { inviteSchema, type InviteInput } from '../schema';
-import { useUsersStore } from '../store/use-users-store';
+import { useDepartmentOptions, useInviteUser } from '../hooks/use-users';
 
-export function InviteUserModal() {
-  const isOpen = useUsersStore((s) => s.isInviteOpen);
-  const close = useUsersStore((s) => s.closeInvite);
-  const invite = useUsersStore((s) => s.invite);
+export function InviteUserModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const invite = useInviteUser();
+  const { data: departments = [] } = useDepartmentOptions();
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<InviteInput>({
     resolver: zodResolver(inviteSchema),
     defaultValues: { fullName: '', email: '', role: UserRole.HOST, department: '' },
   });
 
-  const onSubmit = async (values: InviteInput) => {
-    try {
-      await invite(values);
-      reset();
-    } catch {
-      toast.error('Could not invite the user.');
-    }
+  const onSubmit = (values: InviteInput) => {
+    invite.mutate(values, {
+      onSuccess: () => {
+        reset();
+        onClose();
+      },
+      onError: () => toast.error('Could not invite the user.'),
+    });
   };
 
-  if (!isOpen) return null;
+  if (!open) return null;
 
   return (
-    <Modal open onClose={close} size="md" ariaLabel="Invite user">
+    <Modal open onClose={onClose} size="md" ariaLabel="Invite user">
       <ModalHeader>
         <ModalTitle>Invite user</ModalTitle>
       </ModalHeader>
@@ -83,15 +83,26 @@ export function InviteUserModal() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="i-dept">Department</Label>
-              <Input id="i-dept" {...register('department')} />
+              <Input
+                id="i-dept"
+                list="department-options"
+                placeholder="Select or type a new one"
+                autoComplete="off"
+                {...register('department')}
+              />
+              <datalist id="department-options">
+                {departments.map((d) => (
+                  <option key={d.id} value={d.name} />
+                ))}
+              </datalist>
             </div>
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button type="button" variant="ghost" onClick={close} disabled={isSubmitting}>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={invite.isPending}>
             Cancel
           </Button>
-          <Button type="submit" isLoading={isSubmitting}>
+          <Button type="submit" isLoading={invite.isPending}>
             Send invite
           </Button>
         </ModalFooter>

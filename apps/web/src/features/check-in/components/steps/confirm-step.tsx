@@ -14,6 +14,7 @@ export function ConfirmStep() {
   const hosts = useCheckInStore((s) => s.hosts);
   const hostId = useCheckInStore((s) => s.hostId);
   const purpose = useCheckInStore((s) => s.purpose);
+  const prefilledHost = useCheckInStore((s) => s.prefilledHost);
   const setHostId = useCheckInStore((s) => s.setHostId);
   const setPurpose = useCheckInStore((s) => s.setPurpose);
   const loadHosts = useCheckInStore((s) => s.loadHosts);
@@ -21,9 +22,10 @@ export function ConfirmStep() {
   const isSavingVisitor = useCheckInStore((s) => s.isSavingVisitor);
   const goTo = useCheckInStore((s) => s.goTo);
 
+  // Pre-registered visitors come with their host locked in — no need to load the list.
   useEffect(() => {
-    void loadHosts();
-  }, [loadHosts]);
+    if (!prefilledHost) void loadHosts();
+  }, [loadHosts, prefilledHost]);
 
   const visitorReady = isNewVisitor
     ? draft.fullName.trim().length > 0 && draft.phone.trim().length >= 4
@@ -94,16 +96,25 @@ export function ConfirmStep() {
           <Label htmlFor="host" required>
             Host
           </Label>
-          <Select id="host" value={hostId ?? ''} onChange={(e) => setHostId(e.target.value)}>
-            <option value="" disabled>
-              Select a host…
-            </option>
-            {hosts.map((host) => (
-              <option key={host.id} value={host.id}>
-                {host.fullName} — {host.department}
+          {prefilledHost ? (
+            <>
+              <Input id="host" value={prefilledHost.name} readOnly disabled />
+              <p className="text-xs text-muted-foreground">
+                Set from this visitor’s pre-registration and can’t be changed here.
+              </p>
+            </>
+          ) : (
+            <Select id="host" value={hostId ?? ''} onChange={(e) => setHostId(e.target.value)}>
+              <option value="" disabled>
+                Select a host…
               </option>
-            ))}
-          </Select>
+              {hosts.map((host) => (
+                <option key={host.id} value={host.id}>
+                  {host.fullName} — {host.department}
+                </option>
+              ))}
+            </Select>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="purpose">Purpose of visit</Label>

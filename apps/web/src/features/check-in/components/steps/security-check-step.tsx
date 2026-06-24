@@ -20,11 +20,11 @@ export function SecurityCheckStep() {
     return (
       <div className="space-y-4">
         <Alert variant="destructive" title="Check-in cannot proceed">
-          This visitor cannot be checked in. A supervisor has been notified. The attempt has been
+          This visitor cannot be checked in. An admin has been notified. The attempt has been
           recorded as denied.
         </Alert>
         <p className="text-xs text-muted-foreground">
-          Do not disclose the reason to the visitor. Refer them to a supervisor if they ask.
+          Do not disclose the reason to the visitor. Refer them to an admin if they ask.
         </p>
         <Button variant="outline" onClick={reset}>
           Start over

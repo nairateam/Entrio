@@ -1,11 +1,12 @@
-import { Body, Controller, Get, HttpCode, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiTags } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { CookieOptions, Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 const COOKIE_NAME = 'access_token';
@@ -20,17 +21,37 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
-  @Post('login')
-  @HttpCode(200)
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const { user, accessToken } = await this.auth.login(dto);
-    res.cookie(COOKIE_NAME, accessToken, {
+  private cookieOptions(): CookieOptions {
+    return {
       httpOnly: true,
       sameSite: 'lax',
       secure: this.config.get<string>('NODE_ENV') === 'production',
       maxAge: COOKIE_MAX_AGE_MS,
       path: '/',
-    });
+    };
+  }
+
+  @Post('login')
+  @HttpCode(200)
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const { user, accessToken } = await this.auth.login(dto);
+    res.cookie(COOKIE_NAME, accessToken, this.cookieOptions());
+    return { user };
+  }
+
+  /** Validate an invite/reset token (for the set-password page to greet the user). */
+  @Get('set-password')
+  @HttpCode(200)
+  validateSetPassword(@Query('token') token?: string) {
+    return this.auth.validatePasswordToken(token ?? '');
+  }
+
+  /** Set a password via a valid token and start the session. */
+  @Post('set-password')
+  @HttpCode(200)
+  async setPassword(@Body() dto: SetPasswordDto, @Res({ passthrough: true }) res: Response) {
+    const { user, accessToken } = await this.auth.setPassword(dto.token, dto.password);
+    res.cookie(COOKIE_NAME, accessToken, this.cookieOptions());
     return { user };
   }
 

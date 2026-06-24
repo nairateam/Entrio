@@ -14,33 +14,46 @@ import {
   Switch,
 } from '@/components/ui';
 import { formatDate } from '@/lib/format';
-import { useWorkingHoursStore } from '../store/use-working-hours-store';
-import { DAY_NAMES } from '../types';
+import {
+  useAddBlackout,
+  useBlackoutDates,
+  useRemoveBlackout,
+  useSaveWorkingHours,
+  useWorkingHours,
+} from '../hooks/use-working-hours';
+import { DAY_NAMES, type WorkingHour } from '../types';
 
 export function WorkingHoursManager() {
-  const hours = useWorkingHoursStore((s) => s.hours);
-  const blackouts = useWorkingHoursStore((s) => s.blackouts);
-  const isLoading = useWorkingHoursStore((s) => s.isLoading);
-  const isSaving = useWorkingHoursStore((s) => s.isSaving);
-  const error = useWorkingHoursStore((s) => s.error);
-  const load = useWorkingHoursStore((s) => s.load);
-  const setHour = useWorkingHoursStore((s) => s.setHour);
-  const saveHours = useWorkingHoursStore((s) => s.saveHours);
-  const addBlackout = useWorkingHoursStore((s) => s.addBlackout);
-  const removeBlackout = useWorkingHoursStore((s) => s.removeBlackout);
+  const { data: serverHours = [], isLoading, isError } = useWorkingHours();
+  const { data: blackouts = [] } = useBlackoutDates();
+  const saveHours = useSaveWorkingHours();
+  const addBlackout = useAddBlackout();
+  const removeBlackout = useRemoveBlackout();
+
+  // Editable draft of the weekly hours, synced from the server copy.
+  const [draft, setDraft] = useState<WorkingHour[] | null>(null);
+  useEffect(() => {
+    if (serverHours.length) setDraft(serverHours);
+  }, [serverHours]);
+  const hours = draft ?? serverHours;
+
+  const setHour = (dayOfWeek: number, patch: Partial<WorkingHour>) =>
+    setDraft((d) => (d ?? serverHours).map((h) => (h.dayOfWeek === dayOfWeek ? { ...h, ...patch } : h)));
 
   const [newDate, setNewDate] = useState('');
   const [newReason, setNewReason] = useState('');
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const submitBlackout = async () => {
+  const submitBlackout = () => {
     if (!newDate || !newReason.trim()) return;
-    await addBlackout({ date: newDate, reason: newReason });
-    setNewDate('');
-    setNewReason('');
+    addBlackout.mutate(
+      { date: newDate, reason: newReason },
+      {
+        onSuccess: () => {
+          setNewDate('');
+          setNewReason('');
+        },
+      },
+    );
   };
 
   if (isLoading && hours.length === 0) {
@@ -53,7 +66,7 @@ export function WorkingHoursManager() {
 
   return (
     <div className="space-y-6">
-      {error && <Alert variant="destructive">{error}</Alert>}
+      {isError && <Alert variant="destructive">Could not load working hours.</Alert>}
 
       <Card>
         <CardHeader>
@@ -86,7 +99,7 @@ export function WorkingHoursManager() {
             </div>
           ))}
           <div className="pt-2">
-            <Button onClick={() => void saveHours()} isLoading={isSaving}>
+            <Button onClick={() => saveHours.mutate(hours)} isLoading={saveHours.isPending}>
               Save hours
             </Button>
           </div>
@@ -115,7 +128,7 @@ export function WorkingHoursManager() {
                     variant="ghost"
                     size="icon"
                     aria-label="Remove blackout date"
-                    onClick={() => void removeBlackout(b.id)}
+                    onClick={() => removeBlackout.mutate(b.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -139,8 +152,8 @@ export function WorkingHoursManager() {
             />
             <Button
               variant="outline"
-              onClick={() => void submitBlackout()}
-              disabled={!newDate || !newReason.trim()}
+              onClick={submitBlackout}
+              disabled={!newDate || !newReason.trim() || addBlackout.isPending}
             >
               Add
             </Button>

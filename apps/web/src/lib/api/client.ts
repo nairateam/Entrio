@@ -4,15 +4,37 @@
  */
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+/** Error carrying the HTTP status + the API's message (so callers can branch on 401 etc.). */
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    // The JWT rides an httpOnly cookie — always send/receive it.
+    credentials: 'include',
     ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
   });
 
   if (!res.ok) {
-    throw new Error(`API request failed: ${res.status} ${res.statusText}`);
+    let message = `${res.status} ${res.statusText}`;
+    try {
+      const body = (await res.json()) as { message?: string | string[] };
+      if (body?.message) message = Array.isArray(body.message) ? body.message.join(', ') : body.message;
+    } catch {
+      // non-JSON error body — keep the status line
+    }
+    throw new ApiError(res.status, message);
   }
 
+  // 204 No Content (logout, mark-read, deletes) has no body.
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }

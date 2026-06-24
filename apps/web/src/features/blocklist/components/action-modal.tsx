@@ -11,18 +11,29 @@ import {
   ModalTitle,
   Textarea,
 } from '@/components/ui';
-import { useBlocklistStore } from '../store/use-blocklist-store';
+import { useBlockVisitor, useClearFlag, useUnblockVisitor } from '../hooks/use-blocklist';
+import { useBlocklistUiStore } from '../store/use-blocklist-ui-store';
 
 export function ActionModal() {
-  const pending = useBlocklistStore((s) => s.pending);
-  const reason = useBlocklistStore((s) => s.reason);
-  const setReason = useBlocklistStore((s) => s.setReason);
-  const cancel = useBlocklistStore((s) => s.cancelAction);
-  const confirm = useBlocklistStore((s) => s.confirmAction);
-  const isSubmitting = useBlocklistStore((s) => s.isSubmitting);
+  const pending = useBlocklistUiStore((s) => s.pending);
+  const reason = useBlocklistUiStore((s) => s.reason);
+  const setReason = useBlocklistUiStore((s) => s.setReason);
+  const cancel = useBlocklistUiStore((s) => s.cancelAction);
+
+  const block = useBlockVisitor();
+  const unblock = useUnblockVisitor();
+  const clearFlag = useClearFlag();
+  const isSubmitting = block.isPending || unblock.isPending || clearFlag.isPending;
 
   if (!pending) return null;
   const { action, visitor } = pending;
+
+  const confirm = () => {
+    const onSuccess = () => cancel();
+    if (action === 'block') block.mutate({ id: visitor.id, reason }, { onSuccess });
+    else if (action === 'unblock') unblock.mutate(visitor.id, { onSuccess });
+    else clearFlag.mutate(visitor.id, { onSuccess });
+  };
 
   const config = {
     block: {
@@ -90,7 +101,7 @@ export function ActionModal() {
         </Button>
         <Button
           variant={action === 'block' ? 'destructive' : 'primary'}
-          onClick={() => void confirm()}
+          onClick={confirm}
           isLoading={isSubmitting}
           disabled={config.confirmDisabled}
         >

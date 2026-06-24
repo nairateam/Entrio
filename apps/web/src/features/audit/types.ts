@@ -5,15 +5,16 @@
 export interface AuditEntry {
   id: string;
   actorName: string;
-  action: AuditAction;
+  /** Free string from the server; known values get a friendly label/colour. */
+  action: string;
   targetType: string;
   targetLabel: string;
   detail: string | null;
   createdAt: string;
 }
 
-/** Known audit actions. `action` is a free string in the schema; these are the
- *  values the system currently emits and the viewer knows how to label/colour. */
+/** Actions the viewer knows how to label/colour and offer in the filter. The
+ *  server may emit others, which render with their raw action string. */
 export type AuditAction =
   | 'visitor.checked_in'
   | 'visitor.checked_out'

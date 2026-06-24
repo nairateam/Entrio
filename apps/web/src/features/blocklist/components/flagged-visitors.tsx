@@ -1,98 +1,90 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState } from 'react';
+import { Avatar, Button } from '@/components/ui';
 import {
-  Alert,
-  Avatar,
-  Button,
-  Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui';
+  DataTable,
+  initialTableState,
+  type DataTableColumn,
+  type TableState,
+} from '@/components/shared/data-table';
 import { formatDate, initials } from '@/lib/format';
-import { useBlocklistStore } from '../store/use-blocklist-store';
+import { useFlaggedVisitors } from '../hooks/use-blocklist';
+import { useBlocklistUiStore } from '../store/use-blocklist-ui-store';
+import type { AdminVisitor } from '../types';
 import { ActionModal } from './action-modal';
 
 export function FlaggedVisitors() {
-  const flagged = useBlocklistStore((s) => s.flagged);
-  const isLoading = useBlocklistStore((s) => s.isLoading);
-  const error = useBlocklistStore((s) => s.error);
-  const load = useBlocklistStore((s) => s.load);
-  const requestAction = useBlocklistStore((s) => s.requestAction);
+  const [state, setState] = useState<TableState>(() => initialTableState());
+  const requestAction = useBlocklistUiStore((s) => s.requestAction);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { data, isLoading, isFetching, isError } = useFlaggedVisitors({
+    search: state.search,
+    page: state.page,
+    pageSize: state.pageSize,
+  });
+
+  const columns: DataTableColumn<AdminVisitor>[] = [
+    {
+      id: 'visitor',
+      header: 'Visitor',
+      cell: (v) => (
+        <div className="flex items-center gap-3">
+          <Avatar src={v.photoUrl} fallback={initials(v.fullName)} size="sm" />
+          <div className="min-w-0">
+            <p className="truncate font-medium">{v.fullName}</p>
+            <p className="text-xs text-muted-foreground">{v.phone}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'note',
+      header: 'Flag note',
+      className: 'max-w-xs text-muted-foreground',
+      cell: (v) => v.flagNote,
+    },
+    { id: 'flaggedBy', header: 'Flagged by', cell: (v) => v.flaggedByName ?? '—' },
+    {
+      id: 'flaggedAt',
+      header: 'Flagged',
+      className: 'text-muted-foreground',
+      cell: (v) => formatDate(v.flaggedAt),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      align: 'right',
+      cell: (v) => (
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={() => requestAction('clear-flag', v)}>
+            Clear
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => requestAction('block', v)}>
+            Block
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-4">
-      {error && <Alert variant="destructive">{error}</Alert>}
-
-      {isLoading && flagged.length === 0 ? (
-        <div className="flex items-center justify-center py-16">
-          <Spinner size={28} />
-        </div>
-      ) : flagged.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          No visitors are currently flagged for review.
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Visitor</TableHead>
-              <TableHead>Flag note</TableHead>
-              <TableHead>Flagged by</TableHead>
-              <TableHead>Flagged</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {flagged.map((visitor) => (
-              <TableRow key={visitor.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar src={visitor.photoUrl} fallback={initials(visitor.fullName)} size="sm" />
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{visitor.fullName}</p>
-                      <p className="text-xs text-muted-foreground">{visitor.phone}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="max-w-xs text-muted-foreground">{visitor.flagNote}</TableCell>
-                <TableCell>{visitor.flaggedByName ?? '—'}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDate(visitor.flaggedAt)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => requestAction('clear-flag', visitor)}
-                    >
-                      Clear
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => requestAction('block', visitor)}
-                    >
-                      Block
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-
+    <>
+      <DataTable
+        rows={data?.rows ?? []}
+        total={data?.total ?? 0}
+        columns={columns}
+        getRowKey={(v) => v.id}
+        state={state}
+        onStateChange={setState}
+        isLoading={isLoading}
+        isFetching={isFetching}
+        isError={isError}
+        errorText="Could not load flagged visitors."
+        emptyText="No visitors are currently flagged for review."
+        search={{ placeholder: 'Search name or phone…' }}
+      />
       <ActionModal />
-    </div>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import type { User, Visit, Visitor } from '@entrio/types';
+import type { User, Visit, Visitor, VisitStatus } from '@entrio/types';
 
 /**
  * Wizard steps for the Security walk-in / pre-registered check-in flow.
@@ -34,6 +34,15 @@ export const STEP_LABELS: Record<WizardStep, string> = {
   confirmation: 'Done',
 };
 
+/** A pending pre-registration for this visitor — host is locked at check-in (PRD §4.2). */
+export interface ExpectedVisitRef {
+  id: string;
+  hostId: string;
+  hostName: string;
+  purpose: string | null;
+  expectedTime: string | null;
+}
+
 /**
  * A search hit. Per PRD §4.13 the row must show enough to disambiguate
  * same-name visitors: phone (last 4 shown in UI), last visit date, last headshot.
@@ -41,6 +50,8 @@ export const STEP_LABELS: Record<WizardStep, string> = {
 export interface VisitorSearchResult {
   visitor: Visitor;
   lastVisitAt: string | null;
+  /** Set when the visitor was pre-registered (status `expected`); host comes locked. */
+  expectedVisit: ExpectedVisitRef | null;
 }
 
 /** New visitor details captured when no existing record matches (PRD §4.1.3). */
@@ -70,13 +81,28 @@ export interface CheckInPayload {
   visitorId: string;
   hostId: string;
   purpose: string;
+  /** Captured client-side; photo upload (S3) is not wired yet, so not sent. */
   headshot: string | null;
-  isOverride: boolean;
+  /** Id of an approved override request, when checking in outside hours (§4.8). */
+  overrideRequestId: string | null;
+  /** Id of the pending `expected` visit being fulfilled — transitions it in place (§4.2). */
+  expectedVisitId: string | null;
 }
 
-/** Successful check-in — the created visit, including its generated badge code. */
+/** The created visit as returned by the API (denormalized board row). */
+export interface CheckedInVisit {
+  id: string;
+  visitorId: string;
+  visitorName: string;
+  hostName: string;
+  purpose: string | null;
+  status: VisitStatus;
+  checkInTime: string | null;
+}
+
+/** Successful check-in. */
 export interface CheckInResult {
-  visit: Visit;
+  visit: CheckedInVisit;
 }
 
 export type { User, Visit, Visitor };

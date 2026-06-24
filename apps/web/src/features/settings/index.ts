@@ -1,3 +1,9 @@
 export { SettingsForm } from './components/settings-form';
-export * as settingsApi from './api/settings-api';
-export type { SystemSettings } from './types';
+export { DepartmentsManager } from './components/departments-manager';
+export {
+  useDepartments,
+  useAddDepartment,
+  useRemoveDepartment,
+  departmentKeys,
+} from './hooks/use-departments';
+export type { SystemSettings, Department } from './types';

@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import {
   Alert,
   Badge,
@@ -11,7 +10,7 @@ import {
   type BadgeVariant,
 } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
-import { useOverridesStore } from '../store/use-overrides-store';
+import { useApproveOverride, useDenyOverride, useOverrides } from '../hooks/use-overrides';
 import type { OverrideStatus } from '../types';
 
 const STATUS_VARIANT: Record<OverrideStatus, BadgeVariant> = {
@@ -21,17 +20,9 @@ const STATUS_VARIANT: Record<OverrideStatus, BadgeVariant> = {
 };
 
 export function OverridesQueue() {
-  const requests = useOverridesStore((s) => s.requests);
-  const isLoading = useOverridesStore((s) => s.isLoading);
-  const error = useOverridesStore((s) => s.error);
-  const actingId = useOverridesStore((s) => s.actingId);
-  const load = useOverridesStore((s) => s.load);
-  const approve = useOverridesStore((s) => s.approve);
-  const deny = useOverridesStore((s) => s.deny);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { data: requests = [], isLoading, isError } = useOverrides();
+  const approve = useApproveOverride();
+  const deny = useDenyOverride();
 
   const pending = requests.filter((r) => r.status === 'pending');
   const resolved = requests.filter((r) => r.status !== 'pending');
@@ -46,7 +37,7 @@ export function OverridesQueue() {
 
   return (
     <div className="space-y-6">
-      {error && <Alert variant="destructive">{error}</Alert>}
+      {isError && <Alert variant="destructive">Could not load override requests.</Alert>}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Pending ({pending.length})</h2>
@@ -71,12 +62,16 @@ export function OverridesQueue() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => void deny(r.id)}
-                    isLoading={actingId === r.id}
+                    onClick={() => deny.mutate(r.id)}
+                    isLoading={deny.isPending && deny.variables === r.id}
                   >
                     Deny
                   </Button>
-                  <Button size="sm" onClick={() => void approve(r.id)} isLoading={actingId === r.id}>
+                  <Button
+                    size="sm"
+                    onClick={() => approve.mutate(r.id)}
+                    isLoading={approve.isPending && approve.variables === r.id}
+                  >
                     Approve
                   </Button>
                 </div>

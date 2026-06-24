@@ -48,7 +48,7 @@ export function SettingsForm() {
   };
 
   return (
-    <Card className="max-w-xl">
+    <Card>
       <CardHeader>
         <CardTitle className="text-base">System settings</CardTitle>
       </CardHeader>
@@ -71,12 +71,14 @@ export function SettingsForm() {
 
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">SMS notifications</p>
-            <p className="text-xs text-muted-foreground">Send host arrival alerts via SMS.</p>
+            <p className="text-sm font-medium">Push notifications</p>
+            <p className="text-xs text-muted-foreground">
+              Send host arrival alerts as browser push notifications.
+            </p>
           </div>
           <Switch
-            checked={settings.smsNotifications}
-            onCheckedChange={(checked) => patch({ smsNotifications: checked })}
+            checked={settings.pushNotifications}
+            onCheckedChange={(checked) => patch({ pushNotifications: checked })}
           />
         </div>
 

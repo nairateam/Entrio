@@ -17,6 +17,11 @@ export function CaptureStep() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  // The visitor may already have a photo (prior visit / pre-registration).
+  const existingPhoto = selectedVisitor?.photoUrl ?? null;
+  const [retaking, setRetaking] = useState(false);
+  // What's on screen: a fresh capture wins, else the existing photo (until Retake).
+  const shown = headshot ?? (retaking ? null : existingPhoto);
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -46,13 +51,13 @@ export function CaptureStep() {
       }
     }
 
-    if (!headshot) void startCamera();
+    // Only run the camera when there's nothing to show (new visitor, or after Retake).
+    if (!shown) void startCamera();
     return () => {
       cancelled = true;
       stopCamera();
     };
-    // Re-run when returning to a live view after a retake.
-  }, [headshot]);
+  }, [shown]);
 
   const capture = () => {
     const video = videoRef.current;
@@ -87,14 +92,19 @@ export function CaptureStep() {
     stopCamera();
   };
 
-  const retake = () => setHeadshot(null);
+  const retake = () => {
+    setHeadshot(null);
+    setRetaking(true);
+  };
+
+  const isExistingPhoto = !headshot && shown === existingPhoto;
 
   return (
     <div className="space-y-4">
       <div className="overflow-hidden rounded-lg border border-border bg-muted">
-        {headshot ? (
+        {shown ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={headshot} alt="Captured headshot" className="aspect-[4/3] w-full object-cover" />
+          <img src={shown} alt="Visitor headshot" className="aspect-[4/3] w-full object-cover" />
         ) : (
           <video
             ref={videoRef}
@@ -106,14 +116,20 @@ export function CaptureStep() {
         )}
       </div>
 
-      {cameraError && !headshot && (
+      {isExistingPhoto && (
+        <p className="text-sm text-muted-foreground">
+          Existing photo on file. Use it, or retake to capture a new one.
+        </p>
+      )}
+
+      {cameraError && !shown && (
         <Alert variant="info" title="Camera unavailable">
           {cameraError} You can use a placeholder to continue.
         </Alert>
       )}
 
       <div className="flex flex-wrap gap-2">
-        {headshot ? (
+        {shown ? (
           <Button variant="outline" onClick={retake}>
             <RotateCcw className="h-4 w-4" />
             Retake
@@ -135,7 +151,7 @@ export function CaptureStep() {
         <Button variant="ghost" size="sm" onClick={() => goTo('security-check')}>
           Back
         </Button>
-        <Button onClick={() => void submit()} isLoading={isSubmitting} disabled={!headshot}>
+        <Button onClick={() => void submit()} isLoading={isSubmitting} disabled={!shown}>
           Confirm check-in
         </Button>
       </div>

@@ -1,90 +1,72 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
+import { VisitStatus } from '@entrio/types';
 import {
-  Alert,
-  Input,
-  Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui';
-import { VisitStatusBadge } from '@/components/shared/visit-status-badge';
+  DataTable,
+  initialTableState,
+  type DataTableColumn,
+  type TableState,
+} from '@/components/shared/data-table';
+import { STATUS_LABELS, VisitStatusBadge } from '@/components/shared/visit-status-badge';
 import { formatDateTime } from '@/lib/format';
-import { MOCK_CURRENT_HOST } from '../api/hosts-api';
-import { useHostStore } from '../store/use-host-store';
+import { useHostVisitsPaged } from '../hooks/use-hosts';
+import type { HostVisit } from '../types';
 
-/** Full list of the host's visitors across all statuses, searchable. */
+const STATUS_OPTIONS = Object.values(VisitStatus).map((s) => ({ value: s, label: STATUS_LABELS[s] }));
+
+const columns: DataTableColumn<HostVisit>[] = [
+  {
+    id: 'visitor',
+    header: 'Visitor',
+    cell: (v) => (
+      <>
+        <p className="font-medium">{v.visitorName}</p>
+        <p className="text-xs text-muted-foreground">{v.visitorPhone}</p>
+      </>
+    ),
+  },
+  {
+    id: 'purpose',
+    header: 'Purpose',
+    className: 'text-muted-foreground',
+    cell: (v) => v.purpose ?? '—',
+  },
+  { id: 'status', header: 'Status', cell: (v) => <VisitStatusBadge status={v.status} /> },
+  {
+    id: 'when',
+    header: 'When',
+    className: 'text-muted-foreground',
+    cell: (v) => formatDateTime(v.checkInTime ?? v.expectedTime),
+  },
+];
+
+/** The host's own visitors across all statuses — searchable + paginated. */
 export function HostVisitors() {
-  const visits = useHostStore((s) => s.visits);
-  const isLoading = useHostStore((s) => s.isLoading);
-  const error = useHostStore((s) => s.error);
-  const load = useHostStore((s) => s.load);
-  const [query, setQuery] = useState('');
+  const [state, setState] = useState<TableState>(() => initialTableState());
 
-  useEffect(() => {
-    void load(MOCK_CURRENT_HOST.id);
-  }, [load]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return visits;
-    return visits.filter(
-      (v) => v.visitorName.toLowerCase().includes(q) || v.visitorPhone.includes(q),
-    );
-  }, [visits, query]);
+  const { data, isLoading, isFetching, isError } = useHostVisitsPaged({
+    search: state.search,
+    status: state.filters.status ?? 'all',
+    page: state.page,
+    pageSize: state.pageSize,
+  });
 
   return (
-    <div className="space-y-4">
-      {error && <Alert variant="destructive">{error}</Alert>}
-
-      <Input
-        className="max-w-xs"
-        placeholder="Search by name or phone…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-
-      {isLoading && visits.length === 0 ? (
-        <div className="flex items-center justify-center py-16">
-          <Spinner size={28} />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          No visitors found.
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Visitor</TableHead>
-              <TableHead>Purpose</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>When</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((visit) => (
-              <TableRow key={visit.id}>
-                <TableCell>
-                  <p className="font-medium">{visit.visitorName}</p>
-                  <p className="text-xs text-muted-foreground">{visit.visitorPhone}</p>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{visit.purpose ?? '—'}</TableCell>
-                <TableCell>
-                  <VisitStatusBadge status={visit.status} />
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDateTime(visit.checkInTime ?? visit.expectedTime)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </div>
+    <DataTable
+      rows={data?.rows ?? []}
+      total={data?.total ?? 0}
+      columns={columns}
+      getRowKey={(v) => v.id}
+      state={state}
+      onStateChange={setState}
+      isLoading={isLoading}
+      isFetching={isFetching}
+      isError={isError}
+      errorText="Could not load your visitors."
+      emptyText="No visitors found."
+      search={{ placeholder: 'Search by name or phone…' }}
+      filters={[{ id: 'status', label: 'statuses', options: STATUS_OPTIONS }]}
+    />
   );
 }

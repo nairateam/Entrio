@@ -15,7 +15,7 @@ import {
   Textarea,
 } from '@/components/ui';
 import { formatDateTime } from '@/lib/format';
-import { MOCK_CURRENT_HOST, preRegisterVisit } from '../api/hosts-api';
+import { usePreRegister } from '../hooks/use-hosts';
 import { preRegisterSchema, type PreRegisterInput } from '../schema';
 import type { HostVisit } from '../types';
 
@@ -23,12 +23,13 @@ export function PreRegisterForm() {
   const router = useRouter();
   const [created, setCreated] = useState<HostVisit | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const preRegister = usePreRegister();
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<PreRegisterInput>({
     resolver: zodResolver(preRegisterSchema),
     defaultValues: {
@@ -41,15 +42,15 @@ export function PreRegisterForm() {
     },
   });
 
-  const onSubmit = async (values: PreRegisterInput) => {
+  const onSubmit = (values: PreRegisterInput) => {
     setSubmitError(null);
-    try {
-      const visit = await preRegisterVisit(MOCK_CURRENT_HOST.id, values);
-      setCreated(visit);
-      reset();
-    } catch {
-      setSubmitError('Could not pre-register the visitor. Please try again.');
-    }
+    preRegister.mutate(values, {
+      onSuccess: (visit) => {
+        setCreated(visit);
+        reset();
+      },
+      onError: () => setSubmitError('Could not pre-register the visitor. Please try again.'),
+    });
   };
 
   if (created) {
@@ -165,7 +166,7 @@ export function PreRegisterForm() {
             <Button type="button" variant="ghost" onClick={() => router.push('/host')}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={isSubmitting}>
+            <Button type="submit" isLoading={preRegister.isPending}>
               Pre-register visitor
             </Button>
           </div>

@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -17,40 +16,29 @@ import {
   toast,
 } from '@/components/ui';
 import { formatDate } from '@/lib/format';
-import { MOCK_CURRENT_HOST } from '../api/hosts-api';
 import { restrictionSchema, type RestrictionInput } from '../schema';
-import { useRestrictionsStore } from '../store/use-restrictions-store';
+import { useAddRestriction, useLiftRestriction, useRestrictions } from '../hooks/use-hosts';
 
 export function RestrictionsManager() {
-  const restrictions = useRestrictionsStore((s) => s.restrictions);
-  const isLoading = useRestrictionsStore((s) => s.isLoading);
-  const error = useRestrictionsStore((s) => s.error);
-  const liftingId = useRestrictionsStore((s) => s.liftingId);
-  const load = useRestrictionsStore((s) => s.load);
-  const add = useRestrictionsStore((s) => s.add);
-  const lift = useRestrictionsStore((s) => s.lift);
+  const { data: restrictions = [], isLoading, isError } = useRestrictions();
+  const add = useAddRestriction();
+  const lift = useLiftRestriction();
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<RestrictionInput>({
     resolver: zodResolver(restrictionSchema),
     defaultValues: { visitorName: '', visitorPhone: '', reason: '' },
   });
 
-  useEffect(() => {
-    void load(MOCK_CURRENT_HOST.id);
-  }, [load]);
-
-  const onSubmit = async (values: RestrictionInput) => {
-    try {
-      await add(MOCK_CURRENT_HOST.id, values);
-      reset();
-    } catch {
-      toast.error('Could not add the restriction.');
-    }
+  const onSubmit = (values: RestrictionInput) => {
+    add.mutate(values, {
+      onSuccess: () => reset(),
+      onError: () => toast.error('Could not add the restriction.'),
+    });
   };
 
   return (
@@ -60,7 +48,7 @@ export function RestrictionsManager() {
           <CardTitle className="text-base">Active restrictions</CardTitle>
         </CardHeader>
         <CardContent>
-          {error && <Alert variant="destructive">{error}</Alert>}
+          {isError && <Alert variant="destructive">Could not load restrictions.</Alert>}
           {isLoading && restrictions.length === 0 ? (
             <div className="flex items-center justify-center py-10">
               <Spinner size={24} />
@@ -85,8 +73,8 @@ export function RestrictionsManager() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void lift(r.id)}
-                    isLoading={liftingId === r.id}
+                    onClick={() => lift.mutate(r.id)}
+                    isLoading={lift.isPending && lift.variables === r.id}
                   >
                     Lift
                   </Button>
@@ -133,7 +121,7 @@ export function RestrictionsManager() {
               />
               {errors.reason && <p className="text-xs text-destructive">{errors.reason.message}</p>}
             </div>
-            <Button type="submit" isLoading={isSubmitting}>
+            <Button type="submit" isLoading={add.isPending}>
               Add restriction
             </Button>
           </form>

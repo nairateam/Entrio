@@ -41,7 +41,7 @@ export function WorkingHoursStep() {
         {workingHours.opensAt
           ? `open ${workingHours.opensAt}–${workingHours.closesAt}`
           : 'the facility is closed'}
-        . Check-in is blocked and requires a supervisor override.
+        . Check-in is blocked and requires an admin override.
       </Alert>
 
       <div className="space-y-1.5">

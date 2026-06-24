@@ -3,7 +3,7 @@ import {
   Ban,
   BarChart3,
   CalendarPlus,
-  Clock,
+  ClipboardList,
   Flag,
   LayoutDashboard,
   ScrollText,
@@ -11,7 +11,6 @@ import {
   ShieldBan,
   ShieldCheck,
   UserCog,
-  UserPlus,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -35,7 +34,7 @@ export interface NavItem {
 const security: NavItem[] = [
   { label: 'Overview', href: '/security', icon: LayoutDashboard, exact: true },
   { label: 'Live Board', href: '/security/board', icon: Activity },
-  { label: 'Check-in', href: '/security/check-in', icon: UserPlus },
+  { label: 'Visitations', href: '/security/visitations', icon: ClipboardList },
 ];
 
 // Host: pre-register, see own visitors, restrict a visitor from visiting them.
@@ -46,7 +45,8 @@ const host: NavItem[] = [
   { label: 'Restrictions', href: '/host/restrictions', icon: ShieldBan },
 ];
 
-// Admin: working hours/blackout, blocklist, flagged, overrides, reports, audit, live board.
+// Admin: working hours/blackout, blocklist, flagged, overrides, reports, audit,
+// live board, plus system config and user management (PRD v1.1 §2).
 const admin: NavItem[] = [
   { label: 'Overview', href: '/admin', icon: LayoutDashboard, exact: true },
   { label: 'Live Board', href: '/admin/live-board', icon: Activity },
@@ -54,39 +54,19 @@ const admin: NavItem[] = [
   { label: 'Blocklist', href: '/admin/blocklist', icon: Ban },
   { label: 'Flagged', href: '/admin/flagged', icon: Flag },
   { label: 'Overrides', href: '/admin/overrides', icon: ShieldCheck },
-  { label: 'Working Hours', href: '/admin/working-hours', icon: Clock },
-  { label: 'Audit Log', href: '/admin/audit', icon: ScrollText },
-];
-
-// Super Admin: all Admin powers plus system config and user management.
-const superAdmin: NavItem[] = [
-  ...admin,
   { label: 'Users', href: '/admin/users', icon: UserCog },
+  { label: 'Audit Log', href: '/admin/audit', icon: ScrollText },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
-];
-
-// Supervisor: Admin-adjacent real-time powers — approve overrides, manage blocklist,
-// view blocklist/flagged and the live board (no reporting, hours, or audit access).
-const supervisor: NavItem[] = [
-  { label: 'Overview', href: '/admin', icon: LayoutDashboard, exact: true },
-  { label: 'Live Board', href: '/admin/live-board', icon: Activity },
-  { label: 'Overrides', href: '/admin/overrides', icon: ShieldCheck },
-  { label: 'Blocklist', href: '/admin/blocklist', icon: Ban },
-  { label: 'Flagged', href: '/admin/flagged', icon: Flag },
 ];
 
 export const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   [UserRole.SECURITY]: security,
   [UserRole.HOST]: host,
   [UserRole.ADMIN]: admin,
-  [UserRole.SUPER_ADMIN]: superAdmin,
-  [UserRole.SUPERVISOR]: supervisor,
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.SECURITY]: 'Security',
   [UserRole.HOST]: 'Host',
   [UserRole.ADMIN]: 'Admin',
-  [UserRole.SUPER_ADMIN]: 'Super Admin',
-  [UserRole.SUPERVISOR]: 'Supervisor',
 };

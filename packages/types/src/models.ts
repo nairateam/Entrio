@@ -11,6 +11,14 @@ import type {
   VisitStatus,
 } from './enums';
 
+/** A single page of results from a server-paginated list endpoint. */
+export interface Paginated<T> {
+  rows: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface User {
   id: string;
   fullName: string;
@@ -51,7 +59,6 @@ export interface Visit {
   checkInTime: string | null;
   checkOutTime: string | null;
   expectedTime: string | null;
-  badgeCode: string | null;
   isOverride: boolean;
   overrideApprovedBy: string | null;
   notes: string | null;

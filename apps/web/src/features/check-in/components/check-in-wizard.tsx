@@ -1,6 +1,6 @@
 'use client';
 
-import { Alert, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
+import { Alert } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useCheckInStore } from '../store/use-check-in-store';
 import { STEP_LABELS, STEP_ORDER } from '../types';
@@ -28,10 +28,10 @@ export function CheckInWizard() {
   const currentIndex = STEP_ORDER.indexOf(step);
 
   return (
-    <Card className="mx-auto w-full max-w-xl">
-      <CardHeader>
-        <CardTitle>{STEP_LABELS[step]}</CardTitle>
-        <CardDescription>{STEP_DESCRIPTIONS[step]}</CardDescription>
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <h2 className="text-lg font-semibold leading-none tracking-tight">{STEP_LABELS[step]}</h2>
+        <p className="text-sm text-muted-foreground">{STEP_DESCRIPTIONS[step]}</p>
 
         <ol className="flex items-center gap-1.5 pt-3" aria-label="Check-in progress">
           {STEP_ORDER.map((s, i) => (
@@ -47,9 +47,9 @@ export function CheckInWizard() {
             />
           ))}
         </ol>
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-4">
+      <div className="space-y-4">
         {error && <Alert variant="destructive">{error}</Alert>}
 
         {step === 'search' && <SearchStep />}
@@ -59,7 +59,7 @@ export function CheckInWizard() {
         {step === 'security-check' && <SecurityCheckStep />}
         {step === 'capture' && <CaptureStep />}
         {step === 'confirmation' && <ConfirmationStep />}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -3,15 +3,16 @@
 import { VisitStatus } from '@entrio/types';
 import { Button, Input, Label, Select } from '@/components/ui';
 import { STATUS_LABELS } from '@/components/shared/visit-status-badge';
-import { useReportsStore } from '../store/use-reports-store';
+import { useFilterOptions } from '../hooks/use-reports';
+import { useReportsFiltersStore } from '../store/use-reports-filters-store';
 
 const STATUS_OPTIONS: Array<VisitStatus | 'all'> = ['all', ...Object.values(VisitStatus)];
 
 export function FiltersBar() {
-  const filters = useReportsStore((s) => s.filters);
-  const options = useReportsStore((s) => s.options);
-  const setFilter = useReportsStore((s) => s.setFilter);
-  const resetFilters = useReportsStore((s) => s.resetFilters);
+  const filters = useReportsFiltersStore((s) => s.filters);
+  const setFilter = useReportsFiltersStore((s) => s.setFilter);
+  const resetFilters = useReportsFiltersStore((s) => s.resetFilters);
+  const { data: options = { departments: [], hosts: [] } } = useFilterOptions();
 
   return (
     <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-3 lg:grid-cols-6">

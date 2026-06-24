@@ -1,6 +1,6 @@
 export type OverrideStatus = 'pending' | 'approved' | 'denied';
 
-/** A working-hours override request awaiting supervisor/admin decision (PRD §4.8). */
+/** A working-hours override request awaiting admin decision (PRD §4.8). */
 export interface OverrideRequest {
   id: string;
   visitorName: string;
