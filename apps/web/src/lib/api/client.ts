@@ -2,7 +2,15 @@
  * Thin fetch wrapper for talking to the Entrio API.
  * Business endpoints are added per-feature under src/features/<x>/api.
  */
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+/**
+ * API base. In production, default to a same-origin relative base ('') so calls
+ * hit /api on this origin and are proxied to the backend (see next.config.mjs) —
+ * this keeps the auth cookie first-party. In dev, default to the local API.
+ * Override with NEXT_PUBLIC_API_URL (must include the scheme, e.g. https://…).
+ */
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:4000');
 
 /** Error carrying the HTTP status + the API's message (so callers can branch on 401 etc.). */
 export class ApiError extends Error {

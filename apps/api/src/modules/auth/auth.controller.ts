@@ -22,10 +22,14 @@ export class AuthController {
   ) {}
 
   private cookieOptions(): CookieOptions {
+    // In production the web (Vercel) and API (Railway) are on different sites, so
+    // the auth cookie must be SameSite=None + Secure to ride cross-site requests.
+    // Locally (same host, http) keep Lax so it works without HTTPS.
+    const isProd = this.config.get<string>('NODE_ENV') === 'production';
     return {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: this.config.get<string>('NODE_ENV') === 'production',
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd,
       maxAge: COOKIE_MAX_AGE_MS,
       path: '/',
     };
@@ -58,7 +62,10 @@ export class AuthController {
   @Post('logout')
   @HttpCode(200)
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(COOKIE_NAME, { path: '/' });
+    // Clear with the same attributes the cookie was set with, or the browser
+    // won't match/remove it (SameSite=None; Secure in production).
+    const { maxAge: _maxAge, ...clearOptions } = this.cookieOptions();
+    res.clearCookie(COOKIE_NAME, clearOptions);
     return { success: true };
   }
 
