@@ -15,8 +15,14 @@ async function bootstrap() {
   app.use(urlencoded({ extended: true, limit: '5mb' }));
 
   app.setGlobalPrefix('api');
-  // credentials:true + reflected origin so the web app can send the auth cookie.
-  app.enableCors({ origin: true, credentials: true });
+  // Cross-site auth needs credentials:true + an explicit origin (never '*').
+  // In prod set CORS_ORIGIN to the web URL(s) (comma-separated, e.g. the Vercel
+  // domain + previews); in dev it falls back to reflecting the request origin.
+  const corsOrigin = config.get<string>('CORS_ORIGIN');
+  app.enableCors({
+    origin: corsOrigin ? corsOrigin.split(',').map((o) => o.trim()) : true,
+    credentials: true,
+  });
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
