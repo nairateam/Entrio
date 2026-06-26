@@ -149,6 +149,8 @@ model Visit {
   consentVersion        String?     @map("consent_version")
   checkInTime           DateTime?   @map("check_in_time")
   checkOutTime          DateTime?   @map("check_out_time")
+  /// True when an end-of-day sweep closed the visit (vs a real self/staff check-out).
+  autoCheckedOut        Boolean     @default(false) @map("auto_checked_out")
   expectedTime          DateTime?   @map("expected_time")
   isOverride            Boolean     @default(false) @map("is_override")
   overrideApprovedById  String?     @map("override_approved_by")
