@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, UserRole, VisitStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { visitorDisplayName } from '../../common/visit-name';
 import type { ReportQueryDto } from './dto/report-query.dto';
 
 const OVERSTAY_MS = 4 * 60 * 60 * 1000; // default 4h threshold (PRD §4.6)
@@ -91,7 +92,7 @@ export class ReportsService {
     return {
       id: v.id,
       visitorId: v.visitorId ?? '',
-      visitorName: v.visitor?.fullName ?? v.visitorName ?? 'Visitor',
+      visitorName: visitorDisplayName(v),
       department: v.host.department ?? '—',
       hostId: v.host.id,
       hostName: v.host.fullName,

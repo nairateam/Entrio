@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationChannel, NotificationType, UserRole, VisitStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { visitorDisplayName } from '../../common/visit-name';
 import { PushService } from '../../integrations/web-push/push.service';
 import { AuditService } from '../audit/audit.service';
 import { SettingsService } from '../settings/settings.service';
@@ -51,7 +52,7 @@ export class OverstayService {
       });
       if (already > 0) continue;
 
-      const visitorName = v.visitor?.fullName ?? v.visitorName ?? 'A visitor';
+      const visitorName = visitorDisplayName(v, 'A visitor');
       const recipientIds = [...new Set([v.hostId, ...security.map((s) => s.id)])];
 
       await this.prisma.notification.createMany({

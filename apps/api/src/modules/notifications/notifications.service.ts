@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { visitorDisplayName } from '../../common/visit-name';
 
 const notificationInclude = {
   visit: {
@@ -67,7 +68,7 @@ export class NotificationsService {
   // --- helpers ---------------------------------------------------------------
 
   private toView(n: NotificationWithRefs): NotificationView {
-    const visitorName = n.visit.visitor?.fullName ?? n.visit.visitorName ?? 'A visitor';
+    const visitorName = visitorDisplayName(n.visit, 'A visitor');
     const hostName = n.visit.host.fullName;
     const { title, body } = this.copy(n.type, visitorName, hostName, n.message);
     return {

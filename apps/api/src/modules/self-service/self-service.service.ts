@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { UserRole, VisitStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { visitorDisplayName } from '../../common/visit-name';
 import { VisitsService } from '../visits/visits.service';
 import type { SelfCheckInDto } from './dto/self-check-in.dto';
 
@@ -99,7 +100,7 @@ export class SelfServiceService {
     });
     return visits.map((v) => ({
       visitId: v.id,
-      visitorName: v.visitor?.fullName ?? v.visitorName ?? 'Visitor',
+      visitorName: visitorDisplayName(v),
       phoneLast4: (v.visitor?.phone ?? v.visitorPhone ?? '').slice(-4),
       photoUrl: v.visitor?.photoUrl ?? v.photoUrl,
       hostName: v.host.fullName,

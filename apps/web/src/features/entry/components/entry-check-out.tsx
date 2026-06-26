@@ -1,10 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, KeyRound, LogOut, Search, Smile } from 'lucide-react';
-import { Input, toast } from '@/components/ui';
+import { toast } from '@/components/ui';
 import { ApiError } from '@/lib/api/client';
 import { formatTime, initials } from '@/lib/format';
 import { entryApi } from '../api/entry-api';
@@ -13,6 +12,8 @@ import { useRequireDevice } from '../hooks/use-require-device';
 import type { EntryActiveVisit } from '../types';
 import { EntryShell } from './entry-shell';
 import { EntryButton } from './entry-button';
+import { CodeField } from './code-field';
+import { EntryResult } from './entry-result';
 
 type Step = 'list' | 'code' | 'confirm' | 'done';
 
@@ -142,15 +143,7 @@ export function EntryCheckOut() {
             lookupCode.mutate();
           }}
         >
-          <Input
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            placeholder="0000"
-            inputMode="numeric"
-            maxLength={4}
-            className="h-16 border-border text-center text-4xl font-semibold tracking-[0.4em]"
-            autoFocus
-          />
+          <CodeField value={code} onChange={setCode} />
           <EntryButton type="submit" size="lg" className="h-12 w-full" isLoading={lookupCode.isPending} disabled={!code.trim()}>
             Continue <ArrowRight className="h-5 w-5" />
           </EntryButton>
@@ -186,19 +179,18 @@ export function EntryCheckOut() {
 
   // --- Step: done -----------------------------------------------------------
   return (
-    <EntryShell key="co-done">
-      <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+    <EntryResult
+      shellKey="co-done"
+      title="Thanks for visiting!"
+      returnIn={returnIn}
+      icon={
         <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-success/10">
           <Smile className="h-9 w-9 text-success" />
         </div>
-        <h1 className="mt-5 text-3xl font-bold text-foreground">Thanks for visiting!</h1>
-        <p className="mt-2 text-base text-muted-foreground">Have a great day.</p>
-        <EntryButton asChild entryVariant="soft" size="lg" className="mt-7 w-full">
-          <Link href="/">Done</Link>
-        </EntryButton>
-        <p className="mt-4 text-xs text-muted-foreground">Returning to start in {returnIn}s…</p>
-      </div>
-    </EntryShell>
+      }
+    >
+      <p className="mt-2 text-base text-muted-foreground">Have a great day.</p>
+    </EntryResult>
   );
 }
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useMutation } from '@tanstack/react-query';
 import { ArrowRight, CheckCircle2, HelpCircle, LogIn, Mail, UserRound } from 'lucide-react';
 import {
@@ -23,6 +22,8 @@ import { EntryShell } from './entry-shell';
 import { EntryButton } from './entry-button';
 import { EntryStepper } from './entry-stepper';
 import { HostCombobox } from './host-combobox';
+import { CodeField } from './code-field';
+import { EntryResult } from './entry-result';
 import { PhotoCapture } from './photo-capture';
 import { PolicyCard } from './policy-card';
 import { SignaturePad } from './signature-pad';
@@ -136,17 +137,9 @@ export function EntryCheckIn() {
             lookupCode.mutate();
           }}
         >
-          <div className="rounded-xl border border-border bg-card px-4 pb-2 pt-2.5 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+          <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Registration code</label>
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              placeholder="0000"
-              inputMode="numeric"
-              maxLength={4}
-              className="w-full bg-transparent text-center text-4xl font-semibold tracking-[0.4em] text-foreground outline-none placeholder:text-muted-foreground"
-              autoFocus
-            />
+            <CodeField value={code} onChange={setCode} />
           </div>
           <EntryButton type="submit" size="lg" className="h-12 w-full" isLoading={lookupCode.isPending} disabled={!code.trim()}>
             Verify code <ArrowRight className="h-5 w-5" />
@@ -287,42 +280,34 @@ export function EntryCheckIn() {
   // --- Step: result ---------------------------------------------------------
   if (result?.status === 'success') {
     return (
-      <EntryShell key="ok">
-        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+      <EntryResult
+        shellKey="ok"
+        title="You're all set!"
+        returnIn={returnIn}
+        icon={
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-success/10">
             <CheckCircle2 className="h-9 w-9 text-success" />
           </div>
-          <h1 className="mt-5 text-3xl font-bold text-foreground">You&apos;re all set!</h1>
-          <p className="mt-2 text-base text-muted-foreground">
-            {result.visitorName}, {result.hostName} has been notified. Please have a seat.
-          </p>
-          <div className="mt-6 rounded-xl bg-accent p-5">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Your code</p>
-            <p className="mt-1 text-4xl font-bold tracking-[0.2em] text-primary">{result.entryCode}</p>
-            <p className="mt-1.5 text-xs text-muted-foreground">Keep this to check out later.</p>
-          </div>
-          <EntryButton asChild entryVariant="soft" size="lg" className="mt-7 w-full">
-            <Link href="/">Done</Link>
-          </EntryButton>
-          <p className="mt-4 text-xs text-muted-foreground">Returning to start in {returnIn}s…</p>
+        }
+      >
+        <p className="mt-2 text-base text-muted-foreground">
+          {result.visitorName}, {result.hostName} has been notified. Please have a seat.
+        </p>
+        <div className="mt-6 rounded-xl bg-accent p-5">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Your code</p>
+          <p className="mt-1 text-4xl font-bold tracking-[0.2em] text-primary">{result.entryCode}</p>
+          <p className="mt-1.5 text-xs text-muted-foreground">Keep this to check out later.</p>
         </div>
-      </EntryShell>
+      </EntryResult>
     );
   }
 
   return (
-    <EntryShell key="redirect">
-      <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
-        <h1 className="text-2xl font-bold text-foreground">Almost there</h1>
-        <p className="mt-3 text-base text-muted-foreground">
-          We&apos;re unable to complete your check-in right now. Please see the front desk for assistance.
-        </p>
-        <EntryButton asChild entryVariant="soft" size="lg" className="mt-7 w-full">
-          <Link href="/">Done</Link>
-        </EntryButton>
-        <p className="mt-4 text-xs text-muted-foreground">Returning to start in {returnIn}s…</p>
-      </div>
-    </EntryShell>
+    <EntryResult shellKey="redirect" title="Almost there" returnIn={returnIn}>
+      <p className="mt-3 text-base text-muted-foreground">
+        We&apos;re unable to complete your check-in right now. Please see the front desk for assistance.
+      </p>
+    </EntryResult>
   );
 }
 

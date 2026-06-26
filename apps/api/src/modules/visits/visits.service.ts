@@ -13,8 +13,9 @@ import {
   VisitStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { visitorDisplayName } from '../../common/visit-name';
 import { paginated, type PageArgs, type Paginated } from '../../common/pagination';
-import { generateEntryCode, normalizeEntryCode } from '../../common/entry-code';
+import { allocateEntryCode, normalizeEntryCode } from '../../common/entry-code';
 import { CloudinaryService } from '../../integrations/cloudinary/cloudinary.service';
 import { PushService } from '../../integrations/web-push/push.service';
 import { AuditService } from '../audit/audit.service';
@@ -105,7 +106,7 @@ export class VisitsService {
     return {
       id: v.id,
       visitorId: v.visitorId,
-      visitorName: v.visitor?.fullName ?? v.visitorName ?? 'Visitor',
+      visitorName: visitorDisplayName(v),
       visitorPhone: v.visitor?.phone ?? v.visitorPhone ?? '',
       visitorEmail: v.visitor?.email ?? v.visitorEmail ?? null,
       hostName: v.host.fullName,
@@ -335,7 +336,7 @@ export class VisitsService {
     if (this.settings.get().pushNotifications) {
       await this.push.sendToUser(dto.hostId, {
         title: 'Visitor arrived',
-        body: `${visit.visitor?.fullName ?? visit.visitorName ?? 'A visitor'} is here to see you.`,
+        body: `${visitorDisplayName(visit, 'A visitor')} is here to see you.`,
         url: '/host',
       });
     }
@@ -416,7 +417,7 @@ export class VisitsService {
     const fromExpected = !!expected && expected.status === VisitStatus.expected;
 
     // Reuse a pre-registered code; otherwise mint one so walk-ins can self check-out.
-    const entryCode = fromExpected && expected!.entryCode ? expected!.entryCode : await this.uniqueEntryCode();
+    const entryCode = fromExpected && expected!.entryCode ? expected!.entryCode : await allocateEntryCode(this.prisma);
 
     // Captured media: upload when Cloudinary is configured, else keep the data URL (dev).
     const photoUrl = params.headshot
@@ -455,7 +456,7 @@ export class VisitsService {
     });
 
     // Notify the host (in-app bell + optional push), same as the staff flow.
-    const name = visit.visitor?.fullName ?? visit.visitorName ?? 'A visitor';
+    const name = visitorDisplayName(visit, 'A visitor');
     await this.prisma.notification.create({
       data: {
         visitId: visit.id,
@@ -516,7 +517,7 @@ export class VisitsService {
       where: { role: { in: [UserRole.security, UserRole.admin] }, isActive: true },
       select: { id: true },
     });
-    const visitorName = denied.visitor?.fullName ?? denied.visitorName ?? 'A visitor';
+    const visitorName = visitorDisplayName(denied, 'A visitor');
     const message = `Self-service check-in blocked (${REASON_LABEL[reason]}): ${visitorName} → ${denied.host.fullName}.`;
 
     await this.prisma.notification.createMany({
@@ -587,16 +588,6 @@ export class VisitsService {
     return this.toBoard(visit);
   }
 
-  /** Generate an unused 4-digit entry code (only active visits hold codes). */
-  private async uniqueEntryCode(): Promise<string> {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const code = generateEntryCode();
-      const clash = await this.prisma.visit.findUnique({ where: { entryCode: code }, select: { id: true } });
-      if (!clash) return code;
-    }
-    throw new ConflictException('Could not allocate an entry code — please retry.');
-  }
-
   // --- helpers ---------------------------------------------------------------
 
   /** Map visits to board rows, attaching each one's latest host reply in one query. */
@@ -624,7 +615,7 @@ export class VisitsService {
       id: v.id,
       visitorId: v.visitorId,
       // Fall back to the visit's own captured details for self-service walk-ins.
-      visitorName: v.visitor?.fullName ?? v.visitorName ?? 'Visitor',
+      visitorName: visitorDisplayName(v),
       visitorPhone: v.visitor?.phone ?? v.visitorPhone ?? '',
       photoUrl: v.visitor?.photoUrl ?? v.photoUrl,
       hostName: v.host.fullName,
