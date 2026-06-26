@@ -25,7 +25,9 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
       ctx.lineWidth = 2.5;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#0f172a';
+      // Ink follows the theme's foreground token (readable in light + dark).
+      const fg = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim();
+      ctx.strokeStyle = fg ? `hsl(${fg})` : 'currentColor';
     }
   }, []);
 
@@ -75,7 +77,7 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
         onPointerMove={move}
         onPointerUp={end}
         onPointerLeave={end}
-        className="h-44 w-full touch-none rounded-xl border-2 border-dashed border-slate-300 bg-white"
+        className="h-44 w-full touch-none rounded-xl border-2 border-dashed border-border bg-card"
       />
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Sign above with your finger or mouse.</span>

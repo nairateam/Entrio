@@ -16,12 +16,12 @@ export function EntryDeliveries() {
 
   return (
     <EntryShell key="deliveries" onBack={() => history.back()}>
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-indigo-50">
-          <PackageCheck className="h-9 w-9 text-[#1b2a6b]" />
+      <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary/10">
+          <PackageCheck className="h-9 w-9 text-primary" />
         </div>
-        <h1 className="mt-5 text-2xl font-bold text-slate-900">Deliveries</h1>
-        <p className="mt-2 text-base text-slate-500">
+        <h1 className="mt-5 text-2xl font-bold text-foreground">Deliveries</h1>
+        <p className="mt-2 text-base text-muted-foreground">
           Please hand parcels and packages to the reception desk. A staff member will sign for
           your delivery and notify the recipient.
         </p>

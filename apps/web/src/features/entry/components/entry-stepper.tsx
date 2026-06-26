@@ -17,10 +17,10 @@ export function EntryStepper({ steps, current }: { steps: string[]; current: num
                 className={cn(
                   'grid h-6 w-6 place-items-center rounded-full text-[11px] font-semibold ring-1 transition-all duration-300',
                   done
-                    ? 'bg-[#1b2a6b] text-white ring-[#1b2a6b]'
+                    ? 'bg-primary text-primary-foreground ring-primary'
                     : active
-                      ? 'bg-white text-[#1b2a6b] ring-[#1b2a6b] shadow-sm'
-                      : 'bg-white text-slate-400 ring-slate-200',
+                      ? 'bg-card text-primary ring-primary shadow-sm'
+                      : 'bg-card text-muted-foreground ring-border',
                 )}
               >
                 {done ? <Check className="h-3.5 w-3.5" /> : String(i + 1).padStart(2, '0')}
@@ -28,19 +28,19 @@ export function EntryStepper({ steps, current }: { steps: string[]; current: num
               <span
                 className={cn(
                   'hidden text-xs font-medium sm:inline',
-                  active ? 'text-slate-900' : done ? 'text-slate-500' : 'text-slate-400',
+                  active ? 'text-foreground' : done ? 'text-muted-foreground' : 'text-muted-foreground',
                 )}
               >
                 {label}
               </span>
-              {i < steps.length - 1 && <span className="h-px w-4 bg-slate-200 sm:w-7" />}
+              {i < steps.length - 1 && <span className="h-px w-4 bg-muted sm:w-7" />}
             </li>
           );
         })}
       </ol>
-      <div className="mx-auto mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-slate-200/70">
+      <div className="mx-auto mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-[#1b2a6b] transition-all duration-500 ease-out"
+          className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
           style={{ width: `${((current + 1) / steps.length) * 100}%` }}
         />
       </div>

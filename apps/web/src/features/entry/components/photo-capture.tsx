@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Camera, RotateCcw } from 'lucide-react';
 import { EntryButton } from './entry-button';
 
-const BRACKET = 'pointer-events-none absolute h-7 w-7 border-indigo-300/90';
+const BRACKET = 'pointer-events-none absolute h-7 w-7 border-primary/80';
 const CORNERS = [
   `${BRACKET} left-4 top-4 border-l-2 border-t-2 rounded-tl-lg`,
   `${BRACKET} right-4 top-4 border-r-2 border-t-2 rounded-tr-lg`,
@@ -71,7 +71,7 @@ export function PhotoCapture({
 
   return (
     <div className="space-y-6">
-      <div className="relative mx-auto aspect-[4/3] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 shadow-xl ring-1 ring-black/5">
+      <div className="relative mx-auto aspect-[4/3] w-full overflow-hidden rounded-2xl border border-border bg-muted shadow-xl ring-1 ring-border">
         {value ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={value} alt="Your photo" className="h-full w-full object-cover" />
@@ -86,25 +86,25 @@ export function PhotoCapture({
 
             {/* Circular face guide + scan sweep */}
             <div className="pointer-events-none absolute inset-0 grid place-items-center">
-              <div className="relative h-44 w-44 overflow-hidden rounded-full border-2 border-dashed border-white/70 sm:h-52 sm:w-52">
-                <div className="absolute inset-x-0 top-1/2 h-12 -translate-y-1/2 animate-scan bg-gradient-to-b from-transparent via-indigo-300/40 to-transparent" />
+              <div className="relative h-44 w-44 overflow-hidden rounded-full border-2 border-dashed border-primary/70 sm:h-52 sm:w-52">
+                <div className="absolute inset-x-0 top-1/2 h-12 -translate-y-1/2 animate-scan bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
               </div>
             </div>
 
             {/* REC dot */}
-            <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/40 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-white/90 backdrop-blur-sm">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" /> live
+            <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-foreground/60 px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-background backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive" /> live
             </div>
 
             {/* Guidance pill */}
             {!error && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-foreground/70 px-3.5 py-1.5 text-xs font-medium text-background backdrop-blur-sm">
                 Align your head inside the circle
               </div>
             )}
 
             {error && (
-              <div className="absolute inset-0 grid place-items-center bg-slate-900/80 p-6 text-center text-sm text-white/90">
+              <div className="absolute inset-0 grid place-items-center bg-background/90 p-6 text-center text-sm text-foreground">
                 {error}
               </div>
             )}

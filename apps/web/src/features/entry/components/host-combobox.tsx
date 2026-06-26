@@ -49,8 +49,8 @@ export function HostCombobox({
   // Selected state — a compact chip with a clear button.
   if (value) {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50/50 px-4 py-3">
-        <span className="text-sm text-slate-700">
+      <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/10 px-4 py-3">
+        <span className="text-sm text-foreground">
           <span className="font-semibold">{value.fullName}</span>
           {value.department ? ` · ${value.department}` : ''}
         </span>
@@ -61,7 +61,7 @@ export function HostCombobox({
             setOpen(true);
             requestAnimationFrame(() => inputRef.current?.focus());
           }}
-          className="inline-flex items-center gap-1 text-xs font-medium text-[#1b2a6b] hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
           <X className="h-3.5 w-3.5" /> Change
         </button>
@@ -71,7 +71,7 @@ export function HostCombobox({
 
   return (
     <div ref={containerRef} className="relative">
-      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <input
         ref={inputRef}
         value={query}
@@ -81,18 +81,18 @@ export function HostCombobox({
         }}
         onFocus={() => setOpen(true)}
         placeholder="Start typing a host's name…"
-        className="h-12 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-9 text-base text-slate-900 outline-none transition focus:border-[#1b2a6b] focus:ring-2 focus:ring-[#1b2a6b]/15 placeholder:text-slate-400"
+        className="h-12 w-full rounded-lg border border-border bg-card pl-10 pr-9 text-base text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 placeholder:text-muted-foreground"
         autoComplete="off"
       />
       {isLoading && (
-        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-300" />
+        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
       )}
 
       {open && (
-        <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl ring-1 ring-black/5 animate-slide-up-fade">
+        <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-border bg-card shadow-xl ring-1 ring-border animate-slide-up-fade">
           <ul className="max-h-64 overflow-y-auto py-1">
             {matches.length === 0 ? (
-              <li className="px-4 py-3 text-sm text-slate-400">
+              <li className="px-4 py-3 text-sm text-muted-foreground">
                 {isLoading ? 'Loading hosts…' : query.trim() ? 'No hosts found.' : 'No hosts available.'}
               </li>
             ) : (
@@ -104,10 +104,10 @@ export function HostCombobox({
                       setOpen(false);
                       setQuery('');
                     }}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-indigo-50/60"
+                    className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-accent"
                   >
-                    <span className="text-sm font-medium text-slate-800">{h.fullName}</span>
-                    {h.department && <span className="shrink-0 text-xs text-slate-400">{h.department}</span>}
+                    <span className="text-sm font-medium text-foreground">{h.fullName}</span>
+                    {h.department && <span className="shrink-0 text-xs text-muted-foreground">{h.department}</span>}
                   </button>
                 </li>
               ))

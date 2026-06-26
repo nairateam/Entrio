@@ -19,7 +19,7 @@ export function EntryHome() {
 
   return (
     <EntryShell title="Welcome!" subtitle="Guests register here.">
-      <p className="-mt-6 mb-9 text-center text-sm text-slate-400">
+      <p className="-mt-6 mb-9 text-center text-sm text-muted-foreground">
         Tap to check in your visit and notify your host.
       </p>
 
