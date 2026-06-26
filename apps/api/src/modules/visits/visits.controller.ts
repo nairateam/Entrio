@@ -40,6 +40,13 @@ export class VisitsController {
     return this.visits.getInRange({ from, to, search, status, args: parsePageArgs(page, pageSize) });
   }
 
+  // Full detail for one visit (the detail drawer) — photo, signature, consent.
+  @Get(':id')
+  @Roles(...FRONT_DESK)
+  detail(@Param('id') id: string) {
+    return this.visits.getDetail(id);
+  }
+
   @Post('check-in')
   @Roles(...FRONT_DESK)
   checkIn(@Body() dto: CheckInDto, @CurrentUser() user: AuthUser) {

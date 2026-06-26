@@ -71,12 +71,17 @@ const config: Config = {
           '0%, 100%': { transform: 'translateY(-42%)', opacity: '0' },
           '50%': { transform: 'translateY(42%)', opacity: '1' },
         },
+        'slide-in-right': {
+          from: { transform: 'translateX(100%)' },
+          to: { transform: 'translateX(0)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 150ms ease-out',
         'scale-in': 'scale-in 150ms ease-out',
         'slide-up-fade': 'slide-up-fade 400ms cubic-bezier(0.22, 1, 0.36, 1) both',
         'scan': 'scan 2.4s ease-in-out infinite',
+        'slide-in-right': 'slide-in-right 280ms cubic-bezier(0.22, 1, 0.36, 1)',
       },
     },
   },

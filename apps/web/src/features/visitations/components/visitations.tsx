@@ -10,6 +10,7 @@ import {
   type TableState,
 } from '@/components/shared/data-table';
 import { STATUS_LABELS, VisitStatusBadge } from '@/components/shared/visit-status-badge';
+import { VisitDetailDrawer } from '@/components/shared/visit-detail-drawer';
 import { formatDuration, formatTime, initials } from '@/lib/format';
 import { useVisitations } from '../hooks/use-visitations';
 import type { Visitation } from '../types';
@@ -74,6 +75,7 @@ export function Visitations() {
   const [from, setFrom] = useState(todayLocal);
   const [to, setTo] = useState(todayLocal);
   const [state, setState] = useState<TableState>(() => initialTableState());
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const { data, isLoading, isFetching, isError } = useVisitations({
     from,
@@ -95,11 +97,13 @@ export function Visitations() {
   };
 
   return (
+    <>
     <DataTable
       rows={data?.rows ?? []}
       total={data?.total ?? 0}
       columns={columns}
       getRowKey={(v) => v.id}
+      onRowClick={(v) => setDetailId(v.id)}
       state={state}
       onStateChange={setState}
       isLoading={isLoading}
@@ -137,5 +141,7 @@ export function Visitations() {
         </>
       }
     />
+    <VisitDetailDrawer visitId={detailId} onClose={() => setDetailId(null)} />
+    </>
   );
 }

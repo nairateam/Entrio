@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ShieldAlert, Users } from 'lucide-react';
 import {
   Alert,
@@ -12,6 +12,7 @@ import {
   Spinner,
 } from '@/components/ui';
 import { STATUS_LABELS } from '@/components/shared/visit-status-badge';
+import { VisitDetailDrawer } from '@/components/shared/visit-detail-drawer';
 import { cn } from '@/lib/utils';
 import { useTodayVisits } from '../hooks/use-live-board';
 import { useLiveBoardUiStore } from '../store/use-live-board-ui-store';
@@ -32,6 +33,7 @@ export function LiveBoard() {
   const setView = useLiveBoardUiStore((s) => s.setView);
   const requestCheckout = useLiveBoardUiStore((s) => s.requestCheckout);
   const requestFlag = useLiveBoardUiStore((s) => s.requestFlag);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const inside = useMemo(() => insideVisits(visits), [visits]);
   const filtered = useMemo(
@@ -89,7 +91,7 @@ export function LiveBoard() {
           <Spinner size={28} />
         </div>
       ) : view === 'inside' ? (
-        <WhosInside visits={inside} />
+        <WhosInside visits={inside} onView={(v) => setDetailId(v.id)} />
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-3">
@@ -111,12 +113,18 @@ export function LiveBoard() {
               ))}
             </Select>
           </div>
-          <VisitsTable visits={filtered} onCheckout={requestCheckout} onFlag={requestFlag} />
+          <VisitsTable
+            visits={filtered}
+            onCheckout={requestCheckout}
+            onFlag={requestFlag}
+            onView={(v) => setDetailId(v.id)}
+          />
         </div>
       )}
 
       <CheckOutModal />
       <FlagModal />
+      <VisitDetailDrawer visitId={detailId} onClose={() => setDetailId(null)} />
     </div>
   );
 }
