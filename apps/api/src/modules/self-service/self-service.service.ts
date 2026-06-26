@@ -6,7 +6,6 @@ import {
 import { UserRole, VisitStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VisitsService } from '../visits/visits.service';
-import { VisitorsService } from '../visitors/visitors.service';
 import type { SelfCheckInDto } from './dto/self-check-in.dto';
 
 /**
@@ -22,18 +21,8 @@ export const CONSENT_POLICY = {
     'your visit and are retained per our data-retention policy.',
 };
 
-/** Kiosk-safe visitor match — deliberately omits block/flag status. */
-export interface KioskVisitorMatch {
-  visitorId: string;
-  fullName: string;
-  phoneLast4: string;
-  photoUrl: string | null;
-  expectedVisitId: string | null;
-  hostName: string | null;
-}
-
 /** A currently-checked-in visit, for the streamlined check-out list (PRD v2 §3.3). */
-export interface KioskActiveVisit {
+export interface EntryActiveVisit {
   visitId: string;
   visitorName: string;
   phoneLast4: string;
@@ -51,7 +40,6 @@ export class SelfServiceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly visits: VisitsService,
-    private readonly visitors: VisitorsService,
   ) {}
 
   consentPolicy() {
@@ -77,25 +65,12 @@ export class SelfServiceService {
     return hosts;
   }
 
-  /** Disambiguation search (PRD v2 §3 Step 2b) — never leaks block/flag state. */
-  async search(query: string): Promise<KioskVisitorMatch[]> {
-    const results = await this.visitors.search(query ?? '');
-    return results.map((r) => ({
-      visitorId: r.visitor.id,
-      fullName: r.visitor.fullName,
-      phoneLast4: r.visitor.phone.slice(-4),
-      photoUrl: r.visitor.photoUrl,
-      expectedVisitId: r.expectedVisit?.id ?? null,
-      hostName: r.expectedVisit?.hostName ?? null,
-    }));
-  }
-
   /**
    * Everyone currently checked in (PRD v2 §3.3 — streamlined check-out). With no
    * query this returns the full "inside now" list; the kiosk fetches it once and
    * filters client-side, tapping a row to check out.
    */
-  async listActive(query: string): Promise<KioskActiveVisit[]> {
+  async listActive(query: string): Promise<EntryActiveVisit[]> {
     const q = query?.trim();
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);

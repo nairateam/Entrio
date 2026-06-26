@@ -6,7 +6,6 @@ import type {
   EntryActiveVisit,
   EntryHost,
   EntryVisit,
-  EntryVisitorMatch,
 } from '../types';
 
 const qs = (q: string) => `?q=${encodeURIComponent(q)}`;
@@ -15,8 +14,6 @@ export const entryApi = {
   consent: () => entryFetch<ConsentPolicy>('/api/self-service/consent'),
 
   // check-in
-  searchVisitors: (q: string) =>
-    entryFetch<EntryVisitorMatch[]>(`/api/self-service/visitors/search${qs(q)}`),
   searchHosts: (q: string) => entryFetch<EntryHost[]>(`/api/self-service/hosts/search${qs(q)}`),
   /** Full active-host directory (fetched once, filtered client-side). */
   listHosts: () => entryFetch<EntryHost[]>('/api/self-service/hosts/search'),

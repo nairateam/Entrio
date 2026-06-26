@@ -33,3 +33,6 @@ apps/api/prisma/migrations/dev.db*
 
 # Coverage / test
 coverage/
+
+# TypeScript incremental build info
+*.tsbuildinfo

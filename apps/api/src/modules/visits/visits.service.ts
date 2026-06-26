@@ -12,7 +12,6 @@ import {
   UserRole,
   VisitStatus,
 } from '@prisma/client';
-import { UserRole as ApiUserRole } from '@entrio/types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paginated, type PageArgs, type Paginated } from '../../common/pagination';
 import { generateEntryCode, normalizeEntryCode } from '../../common/entry-code';
@@ -24,7 +23,6 @@ import { SettingsService } from '../settings/settings.service';
 import { VisitorsService } from '../visitors/visitors.service';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
 import type { CheckInDto } from './dto/check-in.dto';
-import type { PreRegisterDto } from './dto/pre-register.dto';
 
 const boardInclude = {
   visitor: { select: { fullName: true, phone: true, photoUrl: true } },
@@ -539,70 +537,6 @@ export class VisitsService {
       throw new NotFoundException('No active visit found for that code.');
     }
     return this.toBoard(visit);
-  }
-
-  /**
-   * Pre-register a visit (PRD v2 §3.2) — creates an `expected` visit with an entry
-   * code the visitor will later type. Hosts pre-register for themselves; Admin may
-   * target any host.
-   */
-  async preRegister(params: {
-    visitorId: string;
-    hostId: string;
-    purpose?: string | null;
-    expectedTime?: string | null;
-    actorId: string;
-  }): Promise<{ visit: BoardVisit; entryCode: string }> {
-    await this.visitors.findById(params.visitorId);
-    const host = await this.prisma.user.findUnique({ where: { id: params.hostId } });
-    if (!host) throw new NotFoundException('Host not found.');
-
-    const entryCode = await this.uniqueEntryCode();
-    const visit = await this.prisma.visit.create({
-      data: {
-        visitorId: params.visitorId,
-        hostId: params.hostId,
-        purpose: params.purpose?.trim() || null,
-        status: VisitStatus.expected,
-        entryCode,
-        expectedTime: params.expectedTime ? new Date(params.expectedTime) : null,
-      },
-      include: boardInclude,
-    });
-    await this.audit.log({
-      actorId: params.actorId,
-      action: 'visit.pre_registered',
-      targetType: 'visit',
-      targetId: visit.id,
-      meta: { hostId: params.hostId, entryCode },
-    });
-    return { visit: this.toBoard(visit), entryCode };
-  }
-
-  /**
-   * Resolve a pre-registration request (PRD v2 §3.2) from the host/admin UI:
-   * picks the host (a Host always registers for themselves; an Admin may target
-   * any host), resolves or creates the visitor, then creates the expected visit.
-   */
-  async preRegisterRequest(dto: PreRegisterDto, actor: { id: string; role: ApiUserRole }) {
-    const hostId = actor.role === ApiUserRole.HOST ? actor.id : dto.hostId ?? actor.id;
-
-    let visitorId: string;
-    if (dto.visitorId) {
-      visitorId = (await this.visitors.findById(dto.visitorId)).id;
-    } else if (dto.newVisitor) {
-      visitorId = (await this.visitors.findOrCreate(dto.newVisitor, actor.id)).id;
-    } else {
-      throw new UnprocessableEntityException('A visitor (existing or new) is required.');
-    }
-
-    return this.preRegister({
-      visitorId,
-      hostId,
-      purpose: dto.purpose,
-      expectedTime: dto.expectedTime,
-      actorId: actor.id,
-    });
   }
 
   /** Generate an unused 4-digit entry code (only active visits hold codes). */

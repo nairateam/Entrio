@@ -7,7 +7,6 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { parsePageArgs } from '../../common/pagination';
 import { CheckInDto } from './dto/check-in.dto';
-import { PreRegisterDto } from './dto/pre-register.dto';
 import { VisitsService } from './visits.service';
 
 type AuthUser = { id: string; role: UserRole };
@@ -45,13 +44,6 @@ export class VisitsController {
   @Roles(...FRONT_DESK)
   checkIn(@Body() dto: CheckInDto, @CurrentUser() user: AuthUser) {
     return this.visits.checkIn(dto, user.id);
-  }
-
-  // Pre-register an expected visit (PRD v2 §3.2). Hosts (own visits) + Admin.
-  @Post('pre-register')
-  @Roles(UserRole.HOST, UserRole.ADMIN)
-  preRegister(@Body() dto: PreRegisterDto, @CurrentUser() user: AuthUser) {
-    return this.visits.preRegisterRequest(dto, user);
   }
 
   @Post(':id/check-out')

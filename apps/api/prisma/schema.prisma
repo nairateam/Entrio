@@ -182,6 +182,18 @@ model Department {
   @@map("departments")
 }
 
+/// System settings (PRD v1.1 §4.6) — a single row (id = "system"). Persisted so
+/// the overstay threshold + notification toggles survive an API restart.
+model SystemSetting {
+  id                     String   @id @default("system")
+  overstayThresholdHours Int      @default(4) @map("overstay_threshold_hours")
+  pushNotifications      Boolean  @default(true) @map("push_notifications")
+  emailNotifications     Boolean  @default(true) @map("email_notifications")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
 /// A shared self-service check-in device (PRD v2 §2.1). Authenticates with a
 /// scoped random token (hashed at rest) — never logs in as a human user.
 model Device {
