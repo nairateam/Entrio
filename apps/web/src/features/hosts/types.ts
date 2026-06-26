@@ -16,6 +16,8 @@ export interface HostVisit {
   expectedTime: string | null;
   checkInTime: string | null;
   hostOnWay: boolean;
+  /** Typed entry code the visitor uses at the self-service device (PRD v2 §3.2). */
+  entryCode: string | null;
 }
 
 /**

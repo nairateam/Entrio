@@ -65,6 +65,15 @@ export function PreRegisterForm() {
               as “Expected” on Security’s board.
             </p>
           </div>
+          {created.entryCode && (
+            <div className="rounded-md border border-border bg-muted/40 p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Entry code</p>
+              <p className="mt-1 text-2xl font-semibold tracking-widest">{created.entryCode}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Share this with {created.visitorName} to type at the check-in device.
+              </p>
+            </div>
+          )}
           <div className="flex justify-center gap-2">
             <Button variant="outline" onClick={() => setCreated(null)}>
               Pre-register another

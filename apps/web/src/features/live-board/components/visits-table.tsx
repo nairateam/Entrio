@@ -79,13 +79,15 @@ export function VisitsTable({ visits, onCheckout, onFlag }: VisitsTableProps) {
             </TableCell>
             <TableCell className="text-right">
               <div className="flex justify-end gap-2">
-                {(visit.status === VisitStatus.CHECKED_IN ||
-                  visit.status === VisitStatus.EXPECTED) && (
-                  <Button variant="ghost" size="sm" onClick={() => onFlag(visit)}>
-                    <Flag className="h-4 w-4" />
-                    Flag
-                  </Button>
-                )}
+                {/* Walk-in self-service visits have no Visitor record to flag (PRD v2). */}
+                {visit.visitorId &&
+                  (visit.status === VisitStatus.CHECKED_IN ||
+                    visit.status === VisitStatus.EXPECTED) && (
+                    <Button variant="ghost" size="sm" onClick={() => onFlag(visit)}>
+                      <Flag className="h-4 w-4" />
+                      Flag
+                    </Button>
+                  )}
                 {visit.status === VisitStatus.CHECKED_IN && (
                   <Button variant="outline" size="sm" onClick={() => onCheckout(visit)}>
                     Check out

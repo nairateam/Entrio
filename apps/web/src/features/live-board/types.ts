@@ -7,7 +7,8 @@ import type { VisitStatus } from '@entrio/types';
  */
 export interface BoardVisit {
   id: string;
-  visitorId: string;
+  /** Null for self-service walk-ins, which keep no Visitor record (PRD v2). */
+  visitorId: string | null;
   visitorName: string;
   visitorPhone: string;
   photoUrl: string | null;

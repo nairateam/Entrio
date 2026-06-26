@@ -40,17 +40,27 @@ export class CloudinaryService {
    * treat a missing URL as "no new photo" rather than failing the check-in.
    */
   async uploadHeadshot(image: string, publicId: string): Promise<string | null> {
+    return this.upload(image, publicId, 'entrio/headshots');
+  }
+
+  /** Upload a drawn signature image (PRD v2 §3 Step 7). */
+  async uploadSignature(image: string, publicId: string): Promise<string | null> {
+    return this.upload(image, publicId, 'entrio/signatures');
+  }
+
+  /** Upload a base64 data URL (or remote URL) to a folder; null if not configured/failed. */
+  async upload(image: string, publicId: string, folder: string): Promise<string | null> {
     if (!this.configured) return null;
     try {
       const result = await cloudinary.uploader.upload(image, {
-        folder: 'entrio/headshots',
+        folder,
         public_id: publicId,
         overwrite: true,
         resource_type: 'image',
       });
       return result.secure_url;
     } catch (error) {
-      this.logger.error(`Headshot upload failed for ${publicId}`, error as Error);
+      this.logger.error(`Upload failed for ${folder}/${publicId}`, error as Error);
       return null;
     }
   }

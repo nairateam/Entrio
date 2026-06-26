@@ -26,6 +26,8 @@ export enum NotificationType {
   OVERRIDE_APPROVED = 'override_approved',
   OVERSTAY_ALERT = 'overstay_alert',
   HOST_RESPONSE = 'host_response',
+  /** Self-service check-in hit a gate (blocklist / restriction / after-hours) — staff must step in. */
+  SELF_SERVICE_EXCEPTION = 'self_service_exception',
 }
 
 /** Delivery channel for a notification. */

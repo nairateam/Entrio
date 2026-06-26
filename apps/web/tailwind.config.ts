@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import defaultTheme from 'tailwindcss/defaultTheme';
 
 const config: Config = {
   darkMode: 'class',
@@ -9,6 +10,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        // Outfit across the app (loaded via next/font in the root layout).
+        sans: ['var(--font-outfit)', ...defaultTheme.fontFamily.sans],
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
@@ -58,10 +63,20 @@ const config: Config = {
           from: { opacity: '0', transform: 'scale(0.96)' },
           to: { opacity: '1', transform: 'scale(1)' },
         },
+        'slide-up-fade': {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'scan': {
+          '0%, 100%': { transform: 'translateY(-42%)', opacity: '0' },
+          '50%': { transform: 'translateY(42%)', opacity: '1' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 150ms ease-out',
         'scale-in': 'scale-in 150ms ease-out',
+        'slide-up-fade': 'slide-up-fade 400ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        'scan': 'scan 2.4s ease-in-out infinite',
       },
     },
   },

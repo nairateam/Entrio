@@ -2,6 +2,9 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { NotificationChannel, NotificationType, Prisma, VisitStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PushService } from '../../integrations/web-push/push.service';
+import { EmailService } from '../../integrations/email/email.service';
+import { preRegisterEmail } from '../../integrations/email/email.templates';
+import { generateEntryCode } from '../../common/entry-code';
 import { paginated, type PageArgs, type Paginated } from '../../common/pagination';
 import { AuditService } from '../audit/audit.service';
 import type { AddRestrictionDto } from './dto/add-restriction.dto';
@@ -32,6 +35,8 @@ export interface HostVisitView {
   expectedTime: string | null;
   checkInTime: string | null;
   hostOnWay: boolean;
+  /** Typed entry code for self-service check-in (PRD v2 §3.2); null for walk-ins. */
+  entryCode: string | null;
 }
 
 export interface HostRestrictionView {
@@ -49,6 +54,7 @@ export class HostsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly push: PushService,
+    private readonly email: EmailService,
   ) {}
 
   /** Active host users, for the check-in host picker (PRD §4.1.6). */
@@ -129,6 +135,7 @@ export class HostsService {
   async preRegister(hostId: string, dto: PreRegisterDto): Promise<HostVisitView> {
     const visitor = await this.upsertVisitor(dto.visitorName, dto.visitorPhone, dto.visitorEmail);
     const expectedTime = new Date(`${dto.expectedDate}T${dto.expectedTime}:00`);
+    const entryCode = await this.uniqueEntryCode();
 
     const visit = await this.prisma.visit.create({
       data: {
@@ -137,6 +144,7 @@ export class HostsService {
         purpose: dto.purpose?.trim() || null,
         status: VisitStatus.expected,
         expectedTime,
+        entryCode,
       },
       include: visitInclude,
     });
@@ -145,9 +153,49 @@ export class HostsService {
       action: 'visit.pre_registered',
       targetType: 'visit',
       targetId: visit.id,
-      meta: { expectedTime: expectedTime.toISOString() },
+      meta: { expectedTime: expectedTime.toISOString(), entryCode },
     });
+
+    // Email the visitor their check-in code (best-effort — never blocks scheduling).
+    if (visitor.email) {
+      await this.sendCodeEmail({
+        to: visitor.email,
+        visitorName: visitor.fullName,
+        hostId,
+        code: entryCode,
+        expectedTime,
+      });
+    }
+
     return this.toVisitView(visit);
+  }
+
+  /** Email a pre-registered visitor their check-in code. Failures are logged, not thrown. */
+  private async sendCodeEmail(args: {
+    to: string;
+    visitorName: string;
+    hostId: string;
+    code: string;
+    expectedTime: Date;
+  }): Promise<void> {
+    const host = await this.prisma.user.findUnique({
+      where: { id: args.hostId },
+      select: { fullName: true },
+    });
+    const when = args.expectedTime.toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    const { subject, html } = preRegisterEmail({
+      visitorName: args.visitorName,
+      hostName: host?.fullName ?? 'Your host',
+      code: args.code,
+      when,
+    });
+    await this.email.send({ to: args.to, subject, html });
   }
 
   /** Host responds "On My Way" after a visitor arrives (PRD §4.5). */
@@ -221,7 +269,7 @@ export class HostsService {
       recipientIds.map((recipientId) =>
         this.push.sendToUser(recipientId, {
           title: `${visit.host.fullName} replied`,
-          body: `Re ${visit.visitor.fullName}: ${body}`,
+          body: `Re ${visit.visitor?.fullName ?? visit.visitorName ?? 'the visitor'}: ${body}`,
           url: '/security/board',
         }),
       ),
@@ -293,19 +341,31 @@ export class HostsService {
     });
   }
 
+  /** Allocate an unused 4-digit entry code (only active visits hold codes). */
+  private async uniqueEntryCode(): Promise<string> {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const code = generateEntryCode();
+      const clash = await this.prisma.visit.findUnique({ where: { entryCode: code }, select: { id: true } });
+      if (!clash) return code;
+    }
+    throw new Error('Could not allocate an entry code.');
+  }
+
   private toVisitView(v: VisitWithVisitor): HostVisitView {
     return {
       id: v.id,
       hostId: v.hostId,
-      visitorName: v.visitor.fullName,
-      visitorPhone: v.visitor.phone,
-      visitorEmail: v.visitor.email,
-      photoUrl: v.visitor.photoUrl,
+      // Self-service walk-ins keep their details on the visit, with no Visitor row.
+      visitorName: v.visitor?.fullName ?? v.visitorName ?? 'Visitor',
+      visitorPhone: v.visitor?.phone ?? v.visitorPhone ?? '',
+      visitorEmail: v.visitor?.email ?? v.visitorEmail ?? null,
+      photoUrl: v.visitor?.photoUrl ?? v.photoUrl,
       purpose: v.purpose,
       status: v.status,
       expectedTime: v.expectedTime?.toISOString() ?? null,
       checkInTime: v.checkInTime?.toISOString() ?? null,
       hostOnWay: v.hostOnWay,
+      entryCode: v.entryCode,
     };
   }
 

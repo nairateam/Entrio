@@ -1,7 +1,7 @@
-/** In-app notification (PRD §3 notifications: arrival, override, overstay). */
+/** In-app notification (PRD §3 + v2 self-service exception). */
 export interface NotificationItem {
   id: string;
-  type: 'arrival' | 'override' | 'overstay' | 'response';
+  type: 'arrival' | 'override' | 'overstay' | 'response' | 'exception';
   title: string;
   body: string;
   createdAt: string;
