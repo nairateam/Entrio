@@ -149,6 +149,8 @@ model Visit {
   consentVersion        String?     @map("consent_version")
   checkInTime           DateTime?   @map("check_in_time")
   checkOutTime          DateTime?   @map("check_out_time")
+  /// True when an end-of-day sweep closed the visit (vs a real self/staff check-out).
+  autoCheckedOut        Boolean     @default(false) @map("auto_checked_out")
   expectedTime          DateTime?   @map("expected_time")
   isOverride            Boolean     @default(false) @map("is_override")
   overrideApprovedById  String?     @map("override_approved_by")
@@ -180,6 +182,18 @@ model Department {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("departments")
+}
+
+/// System settings (PRD v1.1 §4.6) — a single row (id = "system"). Persisted so
+/// the overstay threshold + notification toggles survive an API restart.
+model SystemSetting {
+  id                     String   @id @default("system")
+  overstayThresholdHours Int      @default(4) @map("overstay_threshold_hours")
+  pushNotifications      Boolean  @default(true) @map("push_notifications")
+  emailNotifications     Boolean  @default(true) @map("email_notifications")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
 }
 
 /// A shared self-service check-in device (PRD v2 §2.1). Authenticates with a

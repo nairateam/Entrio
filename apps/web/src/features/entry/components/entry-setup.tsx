@@ -39,15 +39,15 @@ export function EntrySetup() {
 
   return (
     <EntryShell title="Pair this device" subtitle="Enter the device token from Admin → Devices.">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-indigo-50">
-          <MonitorSmartphone className="h-7 w-7 text-[#1b2a6b]" />
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+        <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary/10">
+          <MonitorSmartphone className="h-7 w-7 text-primary" />
         </div>
         <Input
           value={token}
           onChange={(e) => setToken(e.target.value)}
           placeholder="entrio_dev_…"
-          className="h-12 border-slate-200 text-center text-base"
+          className="h-12 border-border text-center text-base"
           autoFocus
           onKeyDown={(e) => e.key === 'Enter' && pair()}
         />

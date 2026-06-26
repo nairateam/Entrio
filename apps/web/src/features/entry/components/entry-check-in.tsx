@@ -123,8 +123,8 @@ export function EntryCheckIn() {
         title="Enter your registration code"
         subtitle={
           <>
-            Please type the <span className="font-medium text-amber-600">4-digit code</span> from your{' '}
-            <span className="font-medium text-amber-600">invitation email</span> to proceed.
+            Please type the <span className="font-medium text-warning">4-digit code</span> from your{' '}
+            <span className="font-medium text-warning">invitation email</span> to proceed.
           </>
         }
         onBack={() => setStep('type')}
@@ -136,15 +136,15 @@ export function EntryCheckIn() {
             lookupCode.mutate();
           }}
         >
-          <div className="rounded-xl border border-slate-200 bg-white px-4 pb-2 pt-2.5 shadow-sm focus-within:border-[#1b2a6b] focus-within:ring-2 focus-within:ring-[#1b2a6b]/15">
-            <label className="text-xs font-medium text-slate-500">Registration code</label>
+          <div className="rounded-xl border border-border bg-card px-4 pb-2 pt-2.5 shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+            <label className="text-xs font-medium text-muted-foreground">Registration code</label>
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
               placeholder="0000"
               inputMode="numeric"
               maxLength={4}
-              className="w-full bg-transparent text-center text-4xl font-semibold tracking-[0.4em] text-slate-900 outline-none placeholder:text-slate-300"
+              className="w-full bg-transparent text-center text-4xl font-semibold tracking-[0.4em] text-foreground outline-none placeholder:text-muted-foreground"
               autoFocus
             />
           </div>
@@ -156,7 +156,7 @@ export function EntryCheckIn() {
           </EntryButton>
         </form>
 
-        <div className="mt-6 flex items-center justify-center gap-6 border-t border-slate-200/70 pt-5 text-xs text-slate-400">
+        <div className="mt-6 flex items-center justify-center gap-6 border-t border-border pt-5 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <HelpCircle className="h-3.5 w-3.5" /> Need help? Ask at reception
           </span>
@@ -179,13 +179,13 @@ export function EntryCheckIn() {
         subtitle="Tell us who you are and who you're visiting."
         onBack={() => setStep('type')}
       >
-        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
           <Field label="Full name">
             <Input
               value={info.fullName}
               onChange={(e) => setInfo((s) => ({ ...s, fullName: e.target.value }))}
               placeholder="Jane Doe"
-              className="h-12 border-slate-200 text-base"
+              className="h-12 border-border text-base"
               autoFocus
             />
           </Field>
@@ -195,7 +195,7 @@ export function EntryCheckIn() {
                 value={info.phone}
                 onChange={(e) => setInfo((s) => ({ ...s, phone: e.target.value }))}
                 placeholder="555 000 1234"
-                className="h-12 border-slate-200 text-base"
+                className="h-12 border-border text-base"
               />
             </Field>
             <Field label="Email (optional)">
@@ -204,7 +204,7 @@ export function EntryCheckIn() {
                 onChange={(e) => setInfo((s) => ({ ...s, email: e.target.value }))}
                 placeholder="jane@example.com"
                 type="email"
-                className="h-12 border-slate-200 text-base"
+                className="h-12 border-border text-base"
               />
             </Field>
           </div>
@@ -218,7 +218,7 @@ export function EntryCheckIn() {
               value={info.purpose}
               onChange={(e) => setInfo((s) => ({ ...s, purpose: e.target.value }))}
               placeholder="Meeting, Interview, Delivery…"
-              className="h-12 border-slate-200 text-base"
+              className="h-12 border-border text-base"
             />
           </Field>
         </div>
@@ -244,7 +244,7 @@ export function EntryCheckIn() {
         <EntryButton size="lg" className="mt-6 h-12 w-full" disabled={!photo} onClick={() => setStep('rules')}>
           Looks good <ArrowRight className="h-5 w-5" />
         </EntryButton>
-        <p className="mt-4 text-center text-xs text-slate-400">
+        <p className="mt-4 text-center text-xs text-muted-foreground">
           Your data is processed securely and encrypted for privacy protection.
         </p>
       </EntryShell>
@@ -262,7 +262,7 @@ export function EntryCheckIn() {
             <ModalTitle>Sign to confirm</ModalTitle>
           </ModalHeader>
           <ModalBody>
-            <p className="mb-3 text-sm text-slate-500">
+            <p className="mb-3 text-sm text-muted-foreground">
               By signing, you agree to the ground rules and site policy.
             </p>
             <SignaturePad onChange={setSignature} />
@@ -288,23 +288,23 @@ export function EntryCheckIn() {
   if (result?.status === 'success') {
     return (
       <EntryShell key="ok">
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-50">
-            <CheckCircle2 className="h-9 w-9 text-emerald-500" />
+        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-success/10">
+            <CheckCircle2 className="h-9 w-9 text-success" />
           </div>
-          <h1 className="mt-5 text-3xl font-bold text-slate-900">You&apos;re all set!</h1>
-          <p className="mt-2 text-base text-slate-500">
+          <h1 className="mt-5 text-3xl font-bold text-foreground">You&apos;re all set!</h1>
+          <p className="mt-2 text-base text-muted-foreground">
             {result.visitorName}, {result.hostName} has been notified. Please have a seat.
           </p>
-          <div className="mt-6 rounded-xl bg-indigo-50/60 p-5">
-            <p className="text-xs uppercase tracking-wide text-slate-400">Your code</p>
-            <p className="mt-1 text-4xl font-bold tracking-[0.2em] text-[#1b2a6b]">{result.entryCode}</p>
-            <p className="mt-1.5 text-xs text-slate-400">Keep this to check out later.</p>
+          <div className="mt-6 rounded-xl bg-accent p-5">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Your code</p>
+            <p className="mt-1 text-4xl font-bold tracking-[0.2em] text-primary">{result.entryCode}</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">Keep this to check out later.</p>
           </div>
           <EntryButton asChild entryVariant="soft" size="lg" className="mt-7 w-full">
             <Link href="/">Done</Link>
           </EntryButton>
-          <p className="mt-4 text-xs text-slate-400">Returning to start in {returnIn}s…</p>
+          <p className="mt-4 text-xs text-muted-foreground">Returning to start in {returnIn}s…</p>
         </div>
       </EntryShell>
     );
@@ -312,15 +312,15 @@ export function EntryCheckIn() {
 
   return (
     <EntryShell key="redirect">
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900">Almost there</h1>
-        <p className="mt-3 text-base text-slate-500">
+      <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+        <h1 className="text-2xl font-bold text-foreground">Almost there</h1>
+        <p className="mt-3 text-base text-muted-foreground">
           We&apos;re unable to complete your check-in right now. Please see the front desk for assistance.
         </p>
         <EntryButton asChild entryVariant="soft" size="lg" className="mt-7 w-full">
           <Link href="/">Done</Link>
         </EntryButton>
-        <p className="mt-4 text-xs text-slate-400">Returning to start in {returnIn}s…</p>
+        <p className="mt-4 text-xs text-muted-foreground">Returning to start in {returnIn}s…</p>
       </div>
     </EntryShell>
   );
@@ -330,7 +330,7 @@ export function EntryCheckIn() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-slate-600">{label}</label>
+      <label className="text-sm font-medium text-muted-foreground">{label}</label>
       {children}
     </div>
   );

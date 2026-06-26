@@ -5,16 +5,6 @@ export interface ConsentPolicy {
   text: string;
 }
 
-/** A visitor match for disambiguation — never carries block/flag state. */
-export interface EntryVisitorMatch {
-  visitorId: string;
-  fullName: string;
-  phoneLast4: string;
-  photoUrl: string | null;
-  expectedVisitId: string | null;
-  hostName: string | null;
-}
-
 export interface EntryHost {
   id: string;
   fullName: string;

@@ -18,6 +18,7 @@ import { BlocklistModule } from './modules/blocklist/blocklist.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { OverstayModule } from './modules/overstay/overstay.module';
 import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
@@ -39,6 +40,7 @@ import { AuditModule } from './modules/audit/audit.module';
     NotificationsModule,
     ReportsModule,
     SettingsModule,
+    OverstayModule,
     AuditModule,
   ],
   controllers: [AppController],

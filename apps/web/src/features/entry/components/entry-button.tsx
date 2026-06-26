@@ -7,12 +7,12 @@ type EntryVariant = 'primary' | 'soft' | 'ghost';
 
 const VARIANTS: Record<EntryVariant, string> = {
   primary:
-    'bg-[#1b2a6b] text-white hover:bg-[#162257] hover:text-white shadow-lg shadow-indigo-950/25 ring-1 ring-white/10',
-  soft: 'bg-white text-[#1b2a6b] hover:text-[#1b2a6b] border border-slate-200 hover:border-indigo-300 hover:bg-white hover:shadow-md shadow-sm',
-  ghost: 'bg-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100/80 shadow-none',
+    'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground shadow-lg shadow-primary/20',
+  soft: 'bg-card text-foreground hover:text-foreground border border-border hover:border-primary/40 hover:bg-card hover:shadow-md shadow-sm',
+  ghost: 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent shadow-none',
 };
 
-/** Premium entry button — navy primary / soft card / ghost, with a subtle press. */
+/** Premium entry button — primary / soft card / ghost, with a subtle press. */
 export function EntryButton({
   entryVariant = 'primary',
   className,

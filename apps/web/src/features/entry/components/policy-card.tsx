@@ -36,9 +36,9 @@ export function PolicyCard({
   const [accepted, setAccepted] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-      <h2 className="text-2xl font-bold text-slate-900">Ground principles &amp; policy</h2>
-      <p className="mt-1 text-sm text-indigo-500/80">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+      <h2 className="text-2xl font-bold text-foreground">Ground principles &amp; policy</h2>
+      <p className="mt-1 text-sm text-primary/80">
         Please review our facility guidelines for a safe and productive environment.
       </p>
 
@@ -46,19 +46,19 @@ export function PolicyCard({
         {SECTIONS.map((s, i) => {
           const isOpen = open[i] ?? false;
           return (
-            <div key={s.title} className="border-b border-slate-100 last:border-0">
+            <div key={s.title} className="border-b border-border last:border-0">
               <button
                 onClick={() => setOpen((o) => ({ ...o, [i]: !isOpen }))}
                 className="flex w-full items-center gap-3 py-3 text-left"
               >
-                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-indigo-50 text-xs font-semibold text-[#1b2a6b]">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
                   {i + 1}
                 </span>
-                <span className="flex-1 text-sm font-semibold uppercase tracking-wide text-slate-700">
+                <span className="flex-1 text-sm font-semibold uppercase tracking-wide text-foreground">
                   {s.title}
                 </span>
                 <ChevronDown
-                  className={cn('h-4 w-4 text-slate-400 transition-transform duration-300', isOpen && 'rotate-180')}
+                  className={cn('h-4 w-4 text-muted-foreground transition-transform duration-300', isOpen && 'rotate-180')}
                 />
               </button>
               <div
@@ -67,20 +67,20 @@ export function PolicyCard({
                   isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
                 )}
               >
-                <p className="overflow-hidden pb-3 pl-9 text-sm leading-relaxed text-slate-500">{s.body}</p>
+                <p className="overflow-hidden pb-3 pl-9 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
               </div>
             </div>
           );
         })}
-        {policyText && <p className="px-1 pt-3 text-xs leading-relaxed text-slate-400">{policyText}</p>}
+        {policyText && <p className="px-1 pt-3 text-xs leading-relaxed text-muted-foreground">{policyText}</p>}
       </div>
 
-      <div className="mt-6 flex flex-col gap-4 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <label className="flex cursor-pointer items-center gap-2.5 text-sm text-slate-600">
+      <div className="mt-6 flex flex-col gap-4 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex cursor-pointer items-center gap-2.5 text-sm text-muted-foreground">
           <Checkbox
             checked={accepted}
             onChange={(e) => setAccepted(e.target.checked)}
-            className="h-5 w-5 accent-[#1b2a6b]"
+            className="h-5 w-5 accent-primary"
           />
           I have read and agree to the terms above
         </label>

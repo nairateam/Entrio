@@ -83,21 +83,21 @@ export function EntryCheckOut() {
     return (
       <EntryShell key="list" title="Check out" subtitle="Tap your name to sign out." onBack={() => history.back()}>
         <div className="relative mb-4">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search your name…"
-            className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-base text-slate-900 shadow-sm outline-none transition focus:border-[#1b2a6b] focus:ring-2 focus:ring-[#1b2a6b]/15 placeholder:text-slate-400"
+            className="h-12 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-base text-foreground shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 placeholder:text-muted-foreground"
             autoFocus
           />
         </div>
 
         <div className="max-h-[24rem] space-y-2 overflow-y-auto pr-0.5">
           {isLoading ? (
-            <p className="py-10 text-center text-sm text-slate-400">Loading…</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
           ) : matches.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-400">
+            <p className="py-10 text-center text-sm text-muted-foreground">
               {active.length === 0 ? 'No one is currently checked in.' : 'No match — try a different name.'}
             </p>
           ) : (
@@ -105,17 +105,17 @@ export function EntryCheckOut() {
               <button
                 key={v.visitId}
                 onClick={() => pick(v)}
-                className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition-all hover:border-indigo-300 hover:shadow-md active:scale-[0.99]"
+                className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.99]"
               >
                 <Avatar name={v.visitorName} photoUrl={v.photoUrl} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-slate-800">{v.visitorName}</p>
-                  <p className="truncate text-xs text-slate-400">
+                  <p className="truncate font-medium text-foreground">{v.visitorName}</p>
+                  <p className="truncate text-xs text-muted-foreground">
                     Visiting {v.hostName}
                     {v.checkInTime ? ` · arrived ${formatTime(v.checkInTime)}` : ''}
                   </p>
                 </div>
-                <LogOut className="h-4 w-4 shrink-0 text-slate-300" />
+                <LogOut className="h-4 w-4 shrink-0 text-muted-foreground" />
               </button>
             ))
           )}
@@ -123,7 +123,7 @@ export function EntryCheckOut() {
 
         <button
           onClick={() => setStep('code')}
-          className="mx-auto mt-6 flex items-center gap-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-[#1b2a6b]"
+          className="mx-auto mt-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <KeyRound className="h-4 w-4" /> Have an entry code instead?
         </button>
@@ -148,7 +148,7 @@ export function EntryCheckOut() {
             placeholder="0000"
             inputMode="numeric"
             maxLength={4}
-            className="h-16 border-slate-200 text-center text-4xl font-semibold tracking-[0.4em]"
+            className="h-16 border-border text-center text-4xl font-semibold tracking-[0.4em]"
             autoFocus
           />
           <EntryButton type="submit" size="lg" className="h-12 w-full" isLoading={lookupCode.isPending} disabled={!code.trim()}>
@@ -163,11 +163,11 @@ export function EntryCheckOut() {
   if (step === 'confirm' && pending) {
     return (
       <EntryShell key="co-confirm" title="Confirm check-out" onBack={() => setStep('list')}>
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-indigo-50">
-            <LogOut className="h-7 w-7 text-[#1b2a6b]" />
+        <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary/10">
+            <LogOut className="h-7 w-7 text-primary" />
           </div>
-          <p className="mt-4 text-lg text-slate-700">
+          <p className="mt-4 text-lg text-foreground">
             Checking out <span className="font-semibold">{pending.visitorName}</span>
             {pending.hostName ? (
               <>
@@ -187,16 +187,16 @@ export function EntryCheckOut() {
   // --- Step: done -----------------------------------------------------------
   return (
     <EntryShell key="co-done">
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-50">
-          <Smile className="h-9 w-9 text-emerald-500" />
+      <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-success/10">
+          <Smile className="h-9 w-9 text-success" />
         </div>
-        <h1 className="mt-5 text-3xl font-bold text-slate-900">Thanks for visiting!</h1>
-        <p className="mt-2 text-base text-slate-500">Have a great day.</p>
+        <h1 className="mt-5 text-3xl font-bold text-foreground">Thanks for visiting!</h1>
+        <p className="mt-2 text-base text-muted-foreground">Have a great day.</p>
         <EntryButton asChild entryVariant="soft" size="lg" className="mt-7 w-full">
           <Link href="/">Done</Link>
         </EntryButton>
-        <p className="mt-4 text-xs text-slate-400">Returning to start in {returnIn}s…</p>
+        <p className="mt-4 text-xs text-muted-foreground">Returning to start in {returnIn}s…</p>
       </div>
     </EntryShell>
   );
@@ -209,7 +209,7 @@ function Avatar({ name, photoUrl }: { name: string; photoUrl: string | null }) {
     return <img src={photoUrl} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />;
   }
   return (
-    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-indigo-100 text-sm font-semibold text-[#1b2a6b]">
+    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
       {initials(name)}
     </div>
   );

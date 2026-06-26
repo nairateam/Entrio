@@ -29,11 +29,6 @@ export class SelfServiceController {
 
   // --- check-in --------------------------------------------------------------
 
-  @Get('visitors/search')
-  search(@Query('q') q?: string) {
-    return this.selfService.search(q ?? '');
-  }
-
   @Get('hosts/search')
   searchHosts(@Query('q') q?: string) {
     return this.selfService.searchHosts(q ?? '');
