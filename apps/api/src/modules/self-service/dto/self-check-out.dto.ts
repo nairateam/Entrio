@@ -2,8 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, MinLength } from 'class-validator';
 
 export class SelfCheckOutDto {
-  @ApiProperty({ description: 'The visit to close out — resolved by code or disambiguation search.' })
+  @ApiProperty({
+    description:
+      'The visitor\'s own entry code. The server resolves the active visit from it — a visit id is never accepted (prevents checking out an arbitrary visitor).',
+  })
   @IsString()
   @MinLength(1)
-  visitId!: string;
+  entryCode!: string;
 }

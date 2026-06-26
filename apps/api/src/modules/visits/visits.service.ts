@@ -564,20 +564,31 @@ export class VisitsService {
     return this.toBoard(updated);
   }
 
-  /** Look up a pending `expected` visit by its typed entry code (pre-reg check-in). */
-  async findExpectedByCode(code: string): Promise<BoardVisit> {
+  /**
+   * Confirm a pending `expected` visit from its code (pre-reg check-in). Returns
+   * only what the device needs to confirm validity + show the host — never the
+   * visit id, full phone, or photo, so a guessed code can't harvest PII.
+   */
+  async lookupExpectedByCode(code: string): Promise<{ hostName: string; purpose: string | null }> {
     const visit = await this.prisma.visit.findUnique({
       where: { entryCode: normalizeEntryCode(code) },
-      include: boardInclude,
+      include: { host: { select: { fullName: true } } },
     });
     if (!visit || visit.status !== VisitStatus.expected) {
       throw new NotFoundException('No pending visit found for that code.');
     }
-    return this.toBoard(visit);
+    return { hostName: visit.host.fullName, purpose: visit.purpose };
   }
 
-  /** Look up the current checked_in visit by entry code (self check-out). */
-  async findActiveByCode(code: string): Promise<BoardVisit> {
+  /**
+   * Confirm an active visit from its code (self check-out). Minimal fields for the
+   * confirm screen — no visit id, phone, or photo.
+   */
+  async lookupActiveByCode(code: string): Promise<{
+    visitorName: string;
+    hostName: string;
+    checkInTime: string | null;
+  }> {
     const visit = await this.prisma.visit.findUnique({
       where: { entryCode: normalizeEntryCode(code) },
       include: boardInclude,
@@ -585,7 +596,11 @@ export class VisitsService {
     if (!visit || visit.status !== VisitStatus.checked_in) {
       throw new NotFoundException('No active visit found for that code.');
     }
-    return this.toBoard(visit);
+    return {
+      visitorName: visitorDisplayName(visit),
+      hostName: visit.host.fullName,
+      checkInTime: visit.checkInTime?.toISOString() ?? null,
+    };
   }
 
   // --- helpers ---------------------------------------------------------------

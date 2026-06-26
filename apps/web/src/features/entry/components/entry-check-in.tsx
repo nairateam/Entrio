@@ -17,7 +17,7 @@ import { entryApi } from '../api/entry-api';
 import { useAutoReturn } from '../hooks/use-auto-return';
 import { useConsent } from '../hooks/use-consent';
 import { useRequireDevice } from '../hooks/use-require-device';
-import type { CheckInInput, CheckInResult, EntryHost, EntryVisit } from '../types';
+import type { CheckInInput, CheckInResult, EntryHost, PreRegLookup } from '../types';
 import { EntryShell } from './entry-shell';
 import { EntryButton } from './entry-button';
 import { EntryStepper } from './entry-stepper';
@@ -40,7 +40,9 @@ export function EntryCheckIn() {
   const [step, setStep] = useState<Step>('type');
 
   const [code, setCode] = useState('');
-  const [prereg, setPrereg] = useState<EntryVisit | null>(null);
+  // Holds the validated pre-registration (host/purpose only). The typed `code`
+  // is what's submitted — the server resolves the expected visit from it.
+  const [prereg, setPrereg] = useState<PreRegLookup | null>(null);
 
   const [info, setInfo] = useState({ fullName: '', phone: '', email: '', purpose: '' });
   const [host, setHost] = useState<EntryHost | null>(null);
@@ -69,7 +71,7 @@ export function EntryCheckIn() {
         signature: sig,
         purpose: info.purpose.trim() || prereg?.purpose || undefined,
         ...(prereg
-          ? { expectedVisitId: prereg.id }
+          ? { entryCode: code.trim() }
           : {
               newVisitor: {
                 fullName: info.fullName.trim(),

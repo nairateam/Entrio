@@ -6,6 +6,7 @@ import {
 import { UserRole, VisitStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { visitorDisplayName } from '../../common/visit-name';
+import { normalizeEntryCode } from '../../common/entry-code';
 import { VisitsService } from '../visits/visits.service';
 import type { SelfCheckInDto } from './dto/self-check-in.dto';
 
@@ -24,10 +25,8 @@ export const CONSENT_POLICY = {
 
 /** A currently-checked-in visit, for the streamlined check-out list (PRD v2 §3.3). */
 export interface EntryActiveVisit {
-  visitId: string;
   visitorName: string;
   phoneLast4: string;
-  photoUrl: string | null;
   hostName: string;
   checkInTime: string | null;
 }
@@ -92,17 +91,17 @@ export class SelfServiceService {
           : {}),
       },
       include: {
-        visitor: { select: { fullName: true, phone: true, photoUrl: true } },
+        visitor: { select: { fullName: true, phone: true } },
         host: { select: { fullName: true } },
       },
       orderBy: { checkInTime: 'desc' },
       take: 1000,
     });
+    // Roster is for confirming you're checked in; it deliberately omits photos and
+    // the visit id (check-out is keyed on the visitor's own entry code, not an id).
     return visits.map((v) => ({
-      visitId: v.id,
       visitorName: visitorDisplayName(v),
       phoneLast4: (v.visitor?.phone ?? v.visitorPhone ?? '').slice(-4),
-      photoUrl: v.visitor?.photoUrl ?? v.photoUrl,
       hostName: v.host.fullName,
       checkInTime: v.checkInTime?.toISOString() ?? null,
     }));
@@ -116,9 +115,12 @@ export class SelfServiceService {
   async checkIn(dto: SelfCheckInDto, deviceId: string): Promise<SelfCheckInResult> {
     if (!dto.consentAccepted) throw new BadRequestException('Consent is required to check in.');
 
-    // --- Pre-registered: fulfill the host-created expected visit (keeps its Visitor) ---
-    if (dto.expectedVisitId) {
-      const expected = await this.prisma.visit.findUnique({ where: { id: dto.expectedVisitId } });
+    // --- Pre-registered: resolve the expected visit from the typed code (server-side).
+    // Clients never pass a visit id, so a returned/guessed id can't drive a check-in. ---
+    if (dto.entryCode) {
+      const expected = await this.prisma.visit.findUnique({
+        where: { entryCode: normalizeEntryCode(dto.entryCode) },
+      });
       if (!expected || expected.status !== VisitStatus.expected) {
         throw new NotFoundException('That pre-registered visit is no longer available.');
       }
@@ -180,5 +182,22 @@ export class SelfServiceService {
       deviceId,
     });
     return { status: 'success', visitorName: visit.visitorName, hostName: visit.hostName, entryCode };
+  }
+
+  /**
+   * Self check-out (PRD v2 §3.3). Resolves the caller's own active visit from the
+   * typed entry code — a raw visit id is never accepted, so a visitor can only
+   * check out the visit whose code they hold (not an arbitrary one).
+   */
+  async checkOut(entryCode: string, deviceId: string) {
+    const code = normalizeEntryCode(entryCode);
+    const visit = await this.prisma.visit.findUnique({
+      where: { entryCode: code },
+      select: { id: true, status: true },
+    });
+    if (!visit || visit.status !== VisitStatus.checked_in) {
+      throw new NotFoundException('No active visit found for that code.');
+    }
+    return this.visits.selfServiceCheckOut(visit.id, deviceId);
   }
 }
