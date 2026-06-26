@@ -21,6 +21,8 @@ export interface BaseEmailOptions {
   /** Body paragraphs (plain text; rendered as <p>). */
   bodyLines: string[];
   button?: EmailButton;
+  /** A prominent code box (e.g. a check-in code). */
+  code?: string;
   /** Small print under the button. */
   footerNote?: string;
 }
@@ -52,6 +54,15 @@ export function baseEmail(opts: BaseEmailOptions): string {
        </p>`
     : '';
 
+  const code = opts.code
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:8px 0 24px;">
+         <tr><td align="center" style="padding:20px;background:${BG};border:1px solid ${BORDER};border-radius:10px;">
+           <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED};margin-bottom:6px;">Your check-in code</div>
+           <div style="font-size:38px;font-weight:700;letter-spacing:0.25em;color:${TEXT};font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;">${esc(opts.code)}</div>
+         </td></tr>
+       </table>`
+    : '';
+
   const footerNote = opts.footerNote
     ? `<p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:${MUTED};">${esc(opts.footerNote)}</p>`
     : '';
@@ -73,6 +84,7 @@ export function baseEmail(opts: BaseEmailOptions): string {
               <td style="padding:32px;">
                 <h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:${TEXT};">${esc(opts.heading)}</h1>
                 ${paragraphs}
+                ${code}
                 ${button}
                 ${footerNote}
               </td>
@@ -109,6 +121,29 @@ export function inviteEmail(opts: { name: string; roleLabel: string; url: string
       ],
       button: { label: 'Set your password', url: opts.url },
       footerNote: 'If you weren’t expecting this invitation, you can safely ignore this email.',
+    }),
+  };
+}
+
+/** Pre-registration email: gives a visitor their check-in code ahead of a visit. */
+export function preRegisterEmail(opts: {
+  visitorName: string;
+  hostName: string;
+  code: string;
+  when?: string | null;
+}): { subject: string; html: string } {
+  return {
+    subject: `Your visit is confirmed — check-in code ${opts.code}`,
+    html: baseEmail({
+      preview: `Your Entrio check-in code is ${opts.code}.`,
+      heading: 'Your visit is confirmed',
+      bodyLines: [
+        `Hi ${opts.visitorName},`,
+        `${opts.hostName} has registered your visit${opts.when ? ` for ${opts.when}` : ''}.`,
+        'When you arrive, type the code below at the check-in device to sign in.',
+      ],
+      code: opts.code,
+      footerNote: 'Please keep this code handy — you’ll also use it to check out.',
     }),
   };
 }

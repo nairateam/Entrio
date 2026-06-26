@@ -90,8 +90,8 @@ export class ReportsService {
       Date.now() - v.checkInTime.getTime() > OVERSTAY_MS;
     return {
       id: v.id,
-      visitorId: v.visitorId,
-      visitorName: v.visitor.fullName,
+      visitorId: v.visitorId ?? '',
+      visitorName: v.visitor?.fullName ?? v.visitorName ?? 'Visitor',
       department: v.host.department ?? '—',
       hostId: v.host.id,
       hostName: v.host.fullName,

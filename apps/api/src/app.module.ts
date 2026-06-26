@@ -9,6 +9,8 @@ import { UsersModule } from './modules/users/users.module';
 import { VisitorsModule } from './modules/visitors/visitors.module';
 import { VisitsModule } from './modules/visits/visits.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
+import { DevicesModule } from './modules/devices/devices.module';
+import { SelfServiceModule } from './modules/self-service/self-service.module';
 import { HostsModule } from './modules/hosts/hosts.module';
 import { WorkingHoursModule } from './modules/working-hours/working-hours.module';
 import { OverridesModule } from './modules/overrides/overrides.module';
@@ -28,6 +30,8 @@ import { AuditModule } from './modules/audit/audit.module';
     VisitorsModule,
     VisitsModule,
     DepartmentsModule,
+    DevicesModule,
+    SelfServiceModule,
     HostsModule,
     WorkingHoursModule,
     OverridesModule,

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PushModule } from '../../integrations/web-push/push.module';
+import { EmailModule } from '../../integrations/email/email.module';
 import { HostsController } from './hosts.controller';
 import { HostsService } from './hosts.service';
 
@@ -9,7 +10,7 @@ import { HostsService } from './hosts.service';
  * feed the check-in security check in VisitorsService.
  */
 @Module({
-  imports: [PushModule],
+  imports: [PushModule, EmailModule],
   controllers: [HostsController],
   providers: [HostsService],
   exports: [HostsService],

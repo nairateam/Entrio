@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Flag,
   LayoutDashboard,
+  MonitorSmartphone,
   ScrollText,
   Settings,
   ShieldBan,
@@ -55,6 +56,7 @@ const admin: NavItem[] = [
   { label: 'Flagged', href: '/admin/flagged', icon: Flag },
   { label: 'Overrides', href: '/admin/overrides', icon: ShieldCheck },
   { label: 'Users', href: '/admin/users', icon: UserCog },
+  { label: 'Devices', href: '/admin/devices', icon: MonitorSmartphone },
   { label: 'Audit Log', href: '/admin/audit', icon: ScrollText },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];

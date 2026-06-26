@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 const notificationInclude = {
   visit: {
     select: {
+      visitorName: true,
       visitor: { select: { fullName: true } },
       host: { select: { fullName: true } },
     },
@@ -13,7 +14,7 @@ const notificationInclude = {
 type NotificationWithRefs = Prisma.NotificationGetPayload<{ include: typeof notificationInclude }>;
 
 /** UI category for the inbox (web NotificationItem.type). */
-type NotificationCategory = 'arrival' | 'override' | 'overstay' | 'response';
+type NotificationCategory = 'arrival' | 'override' | 'overstay' | 'response' | 'exception';
 
 /** Denormalized inbox item (matches the web NotificationItem shape). */
 export interface NotificationView {
@@ -31,6 +32,7 @@ const CATEGORY: Record<NotificationType, NotificationCategory> = {
   [NotificationType.override_approved]: 'override',
   [NotificationType.overstay_alert]: 'overstay',
   [NotificationType.host_response]: 'response',
+  [NotificationType.self_service_exception]: 'exception',
 };
 
 @Injectable()
@@ -65,7 +67,7 @@ export class NotificationsService {
   // --- helpers ---------------------------------------------------------------
 
   private toView(n: NotificationWithRefs): NotificationView {
-    const visitorName = n.visit.visitor.fullName;
+    const visitorName = n.visit.visitor?.fullName ?? n.visit.visitorName ?? 'A visitor';
     const hostName = n.visit.host.fullName;
     const { title, body } = this.copy(n.type, visitorName, hostName, n.message);
     return {
@@ -100,6 +102,11 @@ export class NotificationsService {
         return {
           title: `${hostName} replied`,
           body: message ? `Re ${visitorName}: ${message}` : `${hostName} responded about ${visitorName}.`,
+        };
+      case NotificationType.self_service_exception:
+        return {
+          title: 'Front-desk attention needed',
+          body: message ?? `A self-service check-in for ${visitorName} (host ${hostName}) needs staff assistance.`,
         };
       default:
         return { title: 'Notification', body: visitorName };

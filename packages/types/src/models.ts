@@ -56,13 +56,27 @@ export interface Visit {
   checkedOutBy: string | null;
   purpose: string | null;
   status: VisitStatus;
+  /** Short typed entry code for pre-registered self-service check-in (PRD v2 §3.2). */
+  entryCode: string | null;
   checkInTime: string | null;
   checkOutTime: string | null;
   expectedTime: string | null;
   isOverride: boolean;
   overrideApprovedBy: string | null;
+  /** Tap-to-agree consent captured at self-service check-in (PRD v2 §5.3). */
+  consentAcceptedAt: string | null;
+  consentVersion: string | null;
   notes: string | null;
   createdAt: string;
+}
+
+/** A shared self-service check-in device (PRD v2 §2.1). Not a human user. */
+export interface Device {
+  id: string;
+  label: string;
+  isActive: boolean;
+  createdAt: string;
+  lastUsedAt: string | null;
 }
 
 export interface Notification {

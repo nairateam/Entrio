@@ -34,6 +34,7 @@ enum NotificationType {
   override_approved
   overstay_alert
   host_response
+  self_service_exception
 }
 
 enum NotificationChannel {
@@ -127,12 +128,25 @@ model Visitor {
 /// One visitor, one check-in event. Most-queried table in the system.
 model Visit {
   id                    String      @id @default(cuid())
-  visitorId             String      @map("visitor_id")
+  /// Optional: self-service walk-ins capture details inline (below) with no Visitor row.
+  visitorId             String?     @map("visitor_id")
   hostId                String      @map("host_id")
+  /// Denormalized visitor details for self-service walk-ins (PRD v2 — no Visitor record).
+  visitorName           String?     @map("visitor_name")
+  visitorPhone          String?     @map("visitor_phone")
+  visitorEmail          String?     @map("visitor_email")
+  /// Captured headshot + drawn signature for this specific visit.
+  photoUrl              String?     @map("photo_url")
+  signatureUrl          String?     @map("signature_url")
   checkedInById         String?     @map("checked_in_by")
   checkedOutById        String?     @map("checked_out_by")
   purpose               String?
   status                VisitStatus @default(expected)
+  /// Short typed entry code for pre-registered self-service check-in (PRD v2 §3.2).
+  entryCode             String?     @unique @map("entry_code")
+  /// Tap-to-agree consent captured at self-service check-in (PRD v2 §5.3).
+  consentAcceptedAt     DateTime?   @map("consent_accepted_at")
+  consentVersion        String?     @map("consent_version")
   checkInTime           DateTime?   @map("check_in_time")
   checkOutTime          DateTime?   @map("check_out_time")
   expectedTime          DateTime?   @map("expected_time")
@@ -143,7 +157,7 @@ model Visit {
   notes                 String?
   createdAt             DateTime    @default(now()) @map("created_at")
 
-  visitor            Visitor        @relation(fields: [visitorId], references: [id])
+  visitor            Visitor?       @relation(fields: [visitorId], references: [id])
   host               User           @relation("VisitHost", fields: [hostId], references: [id])
   checkedInBy        User?          @relation("VisitCheckedInBy", fields: [checkedInById], references: [id])
   checkedOutBy       User?          @relation("VisitCheckedOutBy", fields: [checkedOutById], references: [id])
@@ -166,6 +180,21 @@ model Department {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("departments")
+}
+
+/// A shared self-service check-in device (PRD v2 §2.1). Authenticates with a
+/// scoped random token (hashed at rest) — never logs in as a human user.
+model Device {
+  id          String    @id @default(cuid())
+  label       String
+  /// sha256 of the device's high-entropy API token (deterministic, for lookup);
+  /// the plaintext is shown to Admin once at creation and never stored.
+  apiTokenHash String   @map("api_token_hash")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+
+  @@map("devices")
 }
 
 /// A browser Web Push subscription (one per user per device/browser). Used to

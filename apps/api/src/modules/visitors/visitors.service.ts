@@ -77,7 +77,7 @@ export class VisitorsService {
 
     const soonestByVisitor = new Map<string, (typeof expectedVisits)[number]>();
     for (const ev of expectedVisits) {
-      if (!soonestByVisitor.has(ev.visitorId)) soonestByVisitor.set(ev.visitorId, ev);
+      if (ev.visitorId && !soonestByVisitor.has(ev.visitorId)) soonestByVisitor.set(ev.visitorId, ev);
     }
 
     return visitors.map(({ visits, ...visitor }) => {
@@ -116,6 +116,45 @@ export class VisitorsService {
       meta: { fullName: visitor.fullName },
     });
     return visitor;
+  }
+
+  /**
+   * Resolve a walk-in visitor at a self-service device (PRD v2 §3.2): reuse the
+   * existing record for this name+phone, else create one. No human actor — the
+   * audit entry is attributed to the device, not a user.
+   */
+  async findOrCreateForSelfService(
+    data: { fullName: string; phone: string; email?: string },
+    deviceId: string,
+  ): Promise<Visitor> {
+    const fullName = data.fullName.trim();
+    const phone = data.phone.trim();
+
+    const existing = await this.prisma.visitor.findUnique({
+      where: { fullName_phone: { fullName, phone } },
+    });
+    if (existing) return existing;
+
+    const visitor = await this.prisma.visitor.create({
+      data: { fullName, phone, email: data.email?.trim() || null },
+    });
+    await this.audit.log({
+      actorId: null,
+      action: 'visitor.self_registered',
+      targetType: 'visitor',
+      targetId: visitor.id,
+      meta: { deviceId, fullName },
+    });
+    return visitor;
+  }
+
+  /** Reuse the record for this name+phone, else create it (used by pre-registration). */
+  async findOrCreate(data: { fullName: string; phone: string; email?: string }, actorId: string): Promise<Visitor> {
+    const fullName = data.fullName.trim();
+    const phone = data.phone.trim();
+    const existing = await this.prisma.visitor.findUnique({ where: { fullName_phone: { fullName, phone } } });
+    if (existing) return existing;
+    return this.create({ fullName, phone, email: data.email } as CreateVisitorDto, actorId);
   }
 
   /** Flag for review — does not block entry (PRD §4.12). */

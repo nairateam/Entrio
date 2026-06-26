@@ -1,10 +1,17 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { Outfit } from 'next/font/google';
 import { QueryProvider } from '@/providers/query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { AuthInitializer } from '@/features/auth';
 import { Toaster } from '@/components/ui';
 import './globals.css';
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Entrio — Visitor Management',
@@ -16,7 +23,7 @@ const themeScript = `(function(){try{var t=localStorage.getItem('entrio-theme');
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={outfit.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

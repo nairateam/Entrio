@@ -22,11 +22,13 @@ export function FlagModal() {
   const cancel = useLiveBoardUiStore((s) => s.cancelFlag);
   const flagVisitor = useFlagVisitor();
 
-  if (!pending) return null;
+  // Walk-in self-service visits have no Visitor record to flag (PRD v2).
+  if (!pending || !pending.visitorId) return null;
+  const visitorId = pending.visitorId;
 
   const confirm = () => {
     flagVisitor.mutate(
-      { visitorId: pending.visitorId, note: note.trim() },
+      { visitorId, note: note.trim() },
       {
         onSuccess: () => {
           toast.success(`${pending.visitorName} flagged for review.`);

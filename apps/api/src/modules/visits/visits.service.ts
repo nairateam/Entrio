@@ -9,10 +9,13 @@ import {
   NotificationChannel,
   NotificationType,
   Prisma,
+  UserRole,
   VisitStatus,
 } from '@prisma/client';
+import { UserRole as ApiUserRole } from '@entrio/types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { paginated, type PageArgs, type Paginated } from '../../common/pagination';
+import { generateEntryCode, normalizeEntryCode } from '../../common/entry-code';
 import { CloudinaryService } from '../../integrations/cloudinary/cloudinary.service';
 import { PushService } from '../../integrations/web-push/push.service';
 import { AuditService } from '../audit/audit.service';
@@ -21,6 +24,7 @@ import { SettingsService } from '../settings/settings.service';
 import { VisitorsService } from '../visitors/visitors.service';
 import { WorkingHoursService } from '../working-hours/working-hours.service';
 import type { CheckInDto } from './dto/check-in.dto';
+import type { PreRegisterDto } from './dto/pre-register.dto';
 
 const boardInclude = {
   visitor: { select: { fullName: true, phone: true, photoUrl: true } },
@@ -32,7 +36,7 @@ type VisitWithRefs = Prisma.VisitGetPayload<{ include: typeof boardInclude }>;
 /** Denormalized board row (matches the web BoardVisit shape). */
 export interface BoardVisit {
   id: string;
-  visitorId: string;
+  visitorId: string | null;
   visitorName: string;
   visitorPhone: string;
   photoUrl: string | null;
@@ -45,6 +49,21 @@ export interface BoardVisit {
   /** The host's latest reply to the front desk about this visit, if any (§4.5). */
   hostResponse: string | null;
 }
+
+/** Why a silent self-service gate (PRD v2 §3.2) refused entry. */
+export type EntryGateReason = 'blocklist' | 'host_restriction' | 'after_hours';
+
+export interface EntryGateResult {
+  ok: boolean;
+  reason?: EntryGateReason;
+}
+
+/** Staff-facing labels for the real exception reason (never shown to the visitor). */
+const REASON_LABEL: Record<EntryGateReason, string> = {
+  blocklist: 'blocked visitor',
+  host_restriction: 'host restriction',
+  after_hours: 'outside working hours',
+};
 
 @Injectable()
 export class VisitsService {
@@ -118,6 +137,8 @@ export class VisitsService {
                 OR: [
                   { visitor: { fullName: { contains: q, mode: 'insensitive' as const } } },
                   { visitor: { phone: { contains: q } } },
+                  { visitorName: { contains: q, mode: 'insensitive' as const } },
+                  { visitorPhone: { contains: q } },
                   { host: { fullName: { contains: q, mode: 'insensitive' as const } } },
                 ],
               },
@@ -268,7 +289,7 @@ export class VisitsService {
     if (this.settings.get().pushNotifications) {
       await this.push.sendToUser(dto.hostId, {
         title: 'Visitor arrived',
-        body: `${visit.visitor.fullName} is here to see you.`,
+        body: `${visit.visitor?.fullName ?? visit.visitorName ?? 'A visitor'} is here to see you.`,
         url: '/host',
       });
     }
@@ -286,7 +307,8 @@ export class VisitsService {
 
     const updated = await this.prisma.visit.update({
       where: { id },
-      data: { status: VisitStatus.checked_out, checkOutTime: new Date(), checkedOutById: actorId },
+      // Release the entry code so its 4-digit value can be reused.
+      data: { status: VisitStatus.checked_out, checkOutTime: new Date(), checkedOutById: actorId, entryCode: null },
       include: boardInclude,
     });
     await this.audit.log({
@@ -296,6 +318,301 @@ export class VisitsService {
       targetId: id,
     });
     return this.toBoard(updated);
+  }
+
+  // --- self-service (PRD v2) -------------------------------------------------
+
+  /**
+   * Evaluate the silent self-service gates (PRD v2 §3.2) in order, WITHOUT
+   * throwing — the kiosk needs a neutral yes/no plus the real reason for staff.
+   */
+  async evaluateEntryGates(visitorId: string, hostId: string): Promise<EntryGateResult> {
+    const check = await this.visitors.securityCheck(visitorId, hostId);
+    if (check.blocked) return { ok: false, reason: 'blocklist' };
+    if (check.hostRestricted) return { ok: false, reason: 'host_restriction' };
+    return this.evaluateWorkingHours();
+  }
+
+  /**
+   * Working-hours-only gate (PRD v2 §3.2). Used for walk-ins, which have no
+   * persistent visitor identity to check against the blocklist/restriction list.
+   */
+  async evaluateWorkingHours(): Promise<EntryGateResult> {
+    const open = await this.workingHours.isOpenAt(new Date());
+    return open ? { ok: true } : { ok: false, reason: 'after_hours' };
+  }
+
+  /**
+   * Self-service check-in (gates already passed). A pre-registered visit is
+   * fulfilled in place (keeps its Visitor + code); a walk-in creates a fresh,
+   * self-contained visit with the captured details inline and NO Visitor record
+   * (PRD v2 — every clock-in is its own log entry). Stores the headshot + drawn
+   * signature on the visit, then notifies the host. No human operator.
+   */
+  async selfServiceCheckIn(params: {
+    visitorId?: string | null;
+    expectedVisitId?: string | null;
+    hostId: string;
+    purpose?: string | null;
+    visitorName?: string | null;
+    visitorPhone?: string | null;
+    visitorEmail?: string | null;
+    headshot?: string | null;
+    signature?: string | null;
+    consentVersion: string;
+    deviceId: string;
+  }): Promise<{ visit: BoardVisit; entryCode: string }> {
+    const { hostId, deviceId } = params;
+
+    const expected = params.expectedVisitId
+      ? await this.prisma.visit.findUnique({ where: { id: params.expectedVisitId } })
+      : null;
+    const fromExpected = !!expected && expected.status === VisitStatus.expected;
+
+    // Reuse a pre-registered code; otherwise mint one so walk-ins can self check-out.
+    const entryCode = fromExpected && expected!.entryCode ? expected!.entryCode : await this.uniqueEntryCode();
+
+    // Captured media: upload when Cloudinary is configured, else keep the data URL (dev).
+    const photoUrl = params.headshot
+      ? ((await this.cloudinary.uploadHeadshot(params.headshot, entryCode)) ?? params.headshot)
+      : null;
+    const signatureUrl = params.signature
+      ? ((await this.cloudinary.uploadSignature(params.signature, `${entryCode}-sig`)) ?? params.signature)
+      : null;
+
+    const visitData = {
+      visitorId: params.visitorId ?? null,
+      hostId,
+      purpose: params.purpose?.trim() || null,
+      status: VisitStatus.checked_in,
+      entryCode,
+      visitorName: params.visitorName?.trim() || null,
+      visitorPhone: params.visitorPhone?.trim() || null,
+      visitorEmail: params.visitorEmail?.trim() || null,
+      photoUrl,
+      signatureUrl,
+      checkInTime: new Date(),
+      consentAcceptedAt: new Date(),
+      consentVersion: params.consentVersion,
+    };
+
+    const visit = fromExpected
+      ? await this.prisma.visit.update({ where: { id: expected!.id }, data: visitData, include: boardInclude })
+      : await this.prisma.visit.create({ data: visitData, include: boardInclude });
+
+    await this.audit.log({
+      actorId: null,
+      action: 'visitor.self_checked_in',
+      targetType: 'visit',
+      targetId: visit.id,
+      meta: { deviceId, hostId, fromExpected },
+    });
+
+    // Notify the host (in-app bell + optional push), same as the staff flow.
+    const name = visit.visitor?.fullName ?? visit.visitorName ?? 'A visitor';
+    await this.prisma.notification.create({
+      data: {
+        visitId: visit.id,
+        recipientId: hostId,
+        type: NotificationType.arrival_alert,
+        channel: NotificationChannel.in_app,
+      },
+    });
+    if (this.settings.get().pushNotifications) {
+      await this.push.sendToUser(hostId, {
+        title: 'Visitor arrived',
+        body: `${name} is here to see you.`,
+        url: '/host',
+      });
+    }
+
+    return { visit: this.toBoard(visit), entryCode };
+  }
+
+  /**
+   * A self-service attempt that failed a gate (PRD v2 §3.2 / §8b). Records a
+   * `denied` visit for the audit trail and fires a real-reason exception alert to
+   * every active Security/Admin so staff knows before the visitor reaches the desk.
+   * The visitor only ever sees the neutral "see the front desk" message.
+   */
+  async recordSelfServiceException(params: {
+    visitorId?: string | null;
+    hostId: string;
+    purpose?: string | null;
+    visitorName?: string | null;
+    visitorPhone?: string | null;
+    reason: EntryGateReason;
+    deviceId: string;
+  }): Promise<void> {
+    const { hostId, reason, deviceId } = params;
+
+    const denied = await this.prisma.visit.create({
+      data: {
+        visitorId: params.visitorId ?? null,
+        hostId,
+        purpose: params.purpose?.trim() || null,
+        status: VisitStatus.denied,
+        visitorName: params.visitorName?.trim() || null,
+        visitorPhone: params.visitorPhone?.trim() || null,
+      },
+      include: boardInclude,
+    });
+
+    await this.audit.log({
+      actorId: null,
+      action: 'visit.self_service_exception',
+      targetType: 'visit',
+      targetId: denied.id,
+      meta: { deviceId, reason, hostId },
+    });
+
+    const staff = await this.prisma.user.findMany({
+      where: { role: { in: [UserRole.security, UserRole.admin] }, isActive: true },
+      select: { id: true },
+    });
+    const visitorName = denied.visitor?.fullName ?? denied.visitorName ?? 'A visitor';
+    const message = `Self-service check-in blocked (${REASON_LABEL[reason]}): ${visitorName} → ${denied.host.fullName}.`;
+
+    await this.prisma.notification.createMany({
+      data: staff.map((u) => ({
+        visitId: denied.id,
+        recipientId: u.id,
+        type: NotificationType.self_service_exception,
+        channel: NotificationChannel.in_app,
+        message,
+      })),
+    });
+    if (this.settings.get().pushNotifications) {
+      await Promise.all(
+        staff.map((u) =>
+          this.push.sendToUser(u.id, {
+            title: 'Front-desk attention needed',
+            body: message,
+            url: '/security',
+          }),
+        ),
+      );
+    }
+  }
+
+  /** Self-service check-out — no operator, so `checkedOutById` stays null. */
+  async selfServiceCheckOut(id: string, deviceId: string): Promise<BoardVisit> {
+    const visit = await this.prisma.visit.findUnique({ where: { id } });
+    if (!visit) throw new NotFoundException('Visit not found.');
+    if (visit.status !== VisitStatus.checked_in) {
+      throw new ConflictException('Visit is not currently checked in.');
+    }
+    const updated = await this.prisma.visit.update({
+      where: { id },
+      data: { status: VisitStatus.checked_out, checkOutTime: new Date(), entryCode: null },
+      include: boardInclude,
+    });
+    await this.audit.log({
+      actorId: null,
+      action: 'visitor.self_checked_out',
+      targetType: 'visit',
+      targetId: id,
+      meta: { deviceId },
+    });
+    return this.toBoard(updated);
+  }
+
+  /** Look up a pending `expected` visit by its typed entry code (pre-reg check-in). */
+  async findExpectedByCode(code: string): Promise<BoardVisit> {
+    const visit = await this.prisma.visit.findUnique({
+      where: { entryCode: normalizeEntryCode(code) },
+      include: boardInclude,
+    });
+    if (!visit || visit.status !== VisitStatus.expected) {
+      throw new NotFoundException('No pending visit found for that code.');
+    }
+    return this.toBoard(visit);
+  }
+
+  /** Look up the current checked_in visit by entry code (self check-out). */
+  async findActiveByCode(code: string): Promise<BoardVisit> {
+    const visit = await this.prisma.visit.findUnique({
+      where: { entryCode: normalizeEntryCode(code) },
+      include: boardInclude,
+    });
+    if (!visit || visit.status !== VisitStatus.checked_in) {
+      throw new NotFoundException('No active visit found for that code.');
+    }
+    return this.toBoard(visit);
+  }
+
+  /**
+   * Pre-register a visit (PRD v2 §3.2) — creates an `expected` visit with an entry
+   * code the visitor will later type. Hosts pre-register for themselves; Admin may
+   * target any host.
+   */
+  async preRegister(params: {
+    visitorId: string;
+    hostId: string;
+    purpose?: string | null;
+    expectedTime?: string | null;
+    actorId: string;
+  }): Promise<{ visit: BoardVisit; entryCode: string }> {
+    await this.visitors.findById(params.visitorId);
+    const host = await this.prisma.user.findUnique({ where: { id: params.hostId } });
+    if (!host) throw new NotFoundException('Host not found.');
+
+    const entryCode = await this.uniqueEntryCode();
+    const visit = await this.prisma.visit.create({
+      data: {
+        visitorId: params.visitorId,
+        hostId: params.hostId,
+        purpose: params.purpose?.trim() || null,
+        status: VisitStatus.expected,
+        entryCode,
+        expectedTime: params.expectedTime ? new Date(params.expectedTime) : null,
+      },
+      include: boardInclude,
+    });
+    await this.audit.log({
+      actorId: params.actorId,
+      action: 'visit.pre_registered',
+      targetType: 'visit',
+      targetId: visit.id,
+      meta: { hostId: params.hostId, entryCode },
+    });
+    return { visit: this.toBoard(visit), entryCode };
+  }
+
+  /**
+   * Resolve a pre-registration request (PRD v2 §3.2) from the host/admin UI:
+   * picks the host (a Host always registers for themselves; an Admin may target
+   * any host), resolves or creates the visitor, then creates the expected visit.
+   */
+  async preRegisterRequest(dto: PreRegisterDto, actor: { id: string; role: ApiUserRole }) {
+    const hostId = actor.role === ApiUserRole.HOST ? actor.id : dto.hostId ?? actor.id;
+
+    let visitorId: string;
+    if (dto.visitorId) {
+      visitorId = (await this.visitors.findById(dto.visitorId)).id;
+    } else if (dto.newVisitor) {
+      visitorId = (await this.visitors.findOrCreate(dto.newVisitor, actor.id)).id;
+    } else {
+      throw new UnprocessableEntityException('A visitor (existing or new) is required.');
+    }
+
+    return this.preRegister({
+      visitorId,
+      hostId,
+      purpose: dto.purpose,
+      expectedTime: dto.expectedTime,
+      actorId: actor.id,
+    });
+  }
+
+  /** Generate an unused 4-digit entry code (only active visits hold codes). */
+  private async uniqueEntryCode(): Promise<string> {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const code = generateEntryCode();
+      const clash = await this.prisma.visit.findUnique({ where: { entryCode: code }, select: { id: true } });
+      if (!clash) return code;
+    }
+    throw new ConflictException('Could not allocate an entry code — please retry.');
   }
 
   // --- helpers ---------------------------------------------------------------
@@ -324,9 +641,10 @@ export class VisitsService {
     return {
       id: v.id,
       visitorId: v.visitorId,
-      visitorName: v.visitor.fullName,
-      visitorPhone: v.visitor.phone,
-      photoUrl: v.visitor.photoUrl,
+      // Fall back to the visit's own captured details for self-service walk-ins.
+      visitorName: v.visitor?.fullName ?? v.visitorName ?? 'Visitor',
+      visitorPhone: v.visitor?.phone ?? v.visitorPhone ?? '',
+      photoUrl: v.visitor?.photoUrl ?? v.photoUrl,
       hostName: v.host.fullName,
       purpose: v.purpose,
       status: v.status,
