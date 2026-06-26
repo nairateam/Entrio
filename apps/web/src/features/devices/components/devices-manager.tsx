@@ -129,7 +129,7 @@ export function DevicesManager() {
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            On the device, open <code>/kiosk/setup</code> and paste this token to pair it.
+            On the device, open <code>/setup</code> and paste this token to pair it.
           </p>
         </ModalBody>
         <ModalFooter>
