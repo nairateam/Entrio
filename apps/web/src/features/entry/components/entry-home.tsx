@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LogIn, LogOut, Package } from 'lucide-react';
+import { Lock, LogIn, LogOut } from 'lucide-react';
 import { useRequireDevice } from '../hooks/use-require-device';
 import { EntryShell } from './entry-shell';
 import { EntryButton } from './entry-button';
@@ -9,10 +9,10 @@ import { EntryButton } from './entry-button';
 const OPTIONS = [
   { href: '/check-in', label: 'Check in', icon: LogIn, variant: 'primary' as const },
   { href: '/check-out', label: 'Check out', icon: LogOut, variant: 'soft' as const },
-  { href: '/deliveries', label: 'Deliveries', icon: Package, variant: 'soft' as const },
+  { href: '/login', label: 'Staff login', icon: Lock, variant: 'soft' as const },
 ];
 
-/** Entry screen (PRD v2 §3.1) — Check in / Check out / Deliveries. */
+/** Entry screen (PRD v2 §3.1) — Check in / Check out / Staff login. */
 export function EntryHome() {
   const { ready } = useRequireDevice();
   if (!ready) return null;
