@@ -1,7 +1,7 @@
 'use client';
 
 import { VisitStatus } from '@entrio/types';
-import { Flag, MessageSquare } from 'lucide-react';
+import { Eye, Flag, MessageSquare } from 'lucide-react';
 import {
   Avatar,
   Button,
@@ -20,9 +20,10 @@ interface VisitsTableProps {
   visits: BoardVisit[];
   onCheckout: (visit: BoardVisit) => void;
   onFlag: (visit: BoardVisit) => void;
+  onView: (visit: BoardVisit) => void;
 }
 
-export function VisitsTable({ visits, onCheckout, onFlag }: VisitsTableProps) {
+export function VisitsTable({ visits, onCheckout, onFlag, onView }: VisitsTableProps) {
   if (visits.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
@@ -48,13 +49,17 @@ export function VisitsTable({ visits, onCheckout, onFlag }: VisitsTableProps) {
         {visits.map((visit) => (
           <TableRow key={visit.id}>
             <TableCell>
-              <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onView(visit)}
+                className="flex items-center gap-3 text-left transition-opacity hover:opacity-80"
+              >
                 <Avatar src={visit.photoUrl} fallback={initials(visit.visitorName)} size="sm" />
                 <div className="min-w-0">
                   <p className="truncate font-medium">{visit.visitorName}</p>
                   <p className="text-xs text-muted-foreground">{visit.visitorPhone}</p>
                 </div>
-              </div>
+              </button>
             </TableCell>
             <TableCell>
               <div>{visit.hostName}</div>
@@ -78,7 +83,11 @@ export function VisitsTable({ visits, onCheckout, onFlag }: VisitsTableProps) {
                   : '—'}
             </TableCell>
             <TableCell className="text-right">
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-1">
+                <Button variant="ghost" size="sm" onClick={() => onView(visit)}>
+                  <Eye className="h-4 w-4" />
+                  View
+                </Button>
                 {/* Walk-in self-service visits have no Visitor record to flag (PRD v2). */}
                 {visit.visitorId &&
                   (visit.status === VisitStatus.CHECKED_IN ||
@@ -93,10 +102,6 @@ export function VisitsTable({ visits, onCheckout, onFlag }: VisitsTableProps) {
                     Check out
                   </Button>
                 )}
-                {visit.status !== VisitStatus.CHECKED_IN &&
-                  visit.status !== VisitStatus.EXPECTED && (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
               </div>
             </TableCell>
           </TableRow>

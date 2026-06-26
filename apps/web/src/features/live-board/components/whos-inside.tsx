@@ -18,7 +18,13 @@ import type { BoardVisit } from '../types';
  * Evacuation roll call (PRD §4.10) — everyone currently on site, optimized for
  * reading aloud during an incident. Printable for a paper headcount.
  */
-export function WhosInside({ visits }: { visits: BoardVisit[] }) {
+export function WhosInside({
+  visits,
+  onView,
+}: {
+  visits: BoardVisit[];
+  onView: (visit: BoardVisit) => void;
+}) {
   return (
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-4">
@@ -58,10 +64,14 @@ export function WhosInside({ visits }: { visits: BoardVisit[] }) {
             {visits.map((visit) => (
               <TableRow key={visit.id}>
                 <TableCell>
-                  <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onView(visit)}
+                    className="flex items-center gap-3 text-left transition-opacity hover:opacity-80"
+                  >
                     <Avatar src={visit.photoUrl} fallback={initials(visit.visitorName)} size="sm" />
                     <span className="font-medium">{visit.visitorName}</span>
-                  </div>
+                  </button>
                 </TableCell>
                 <TableCell>{visit.hostName}</TableCell>
                 <TableCell className="text-muted-foreground">{visit.purpose ?? '—'}</TableCell>

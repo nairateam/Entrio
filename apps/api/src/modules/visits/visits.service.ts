@@ -31,6 +31,11 @@ const boardInclude = {
 
 type VisitWithRefs = Prisma.VisitGetPayload<{ include: typeof boardInclude }>;
 
+const detailInclude = {
+  visitor: { select: { fullName: true, phone: true, email: true, photoUrl: true } },
+  host: { select: { fullName: true } },
+} satisfies Prisma.VisitInclude;
+
 /** Denormalized board row (matches the web BoardVisit shape). */
 export interface BoardVisit {
   id: string;
@@ -46,6 +51,16 @@ export interface BoardVisit {
   expectedTime: string | null;
   /** The host's latest reply to the front desk about this visit, if any (§4.5). */
   hostResponse: string | null;
+}
+
+/** Full visit record for the detail drawer — adds media + consent + contact. */
+export interface VisitDetail extends BoardVisit {
+  visitorEmail: string | null;
+  entryCode: string | null;
+  signatureUrl: string | null;
+  consentAcceptedAt: string | null;
+  consentVersion: string | null;
+  autoCheckedOut: boolean;
 }
 
 /** Why a silent self-service gate (PRD v2 §3.2) refused entry. */
@@ -75,6 +90,39 @@ export class VisitsService {
     private readonly push: PushService,
     private readonly settings: SettingsService,
   ) {}
+
+  /** Full detail for one visit (the detail drawer) — incl. photo + signature. */
+  async getDetail(id: string): Promise<VisitDetail> {
+    const v = await this.prisma.visit.findUnique({ where: { id }, include: detailInclude });
+    if (!v) throw new NotFoundException('Visit not found.');
+
+    const resp = await this.prisma.notification.findFirst({
+      where: { visitId: id, type: NotificationType.host_response, message: { not: null } },
+      orderBy: { sentAt: 'desc' },
+      select: { message: true },
+    });
+
+    return {
+      id: v.id,
+      visitorId: v.visitorId,
+      visitorName: v.visitor?.fullName ?? v.visitorName ?? 'Visitor',
+      visitorPhone: v.visitor?.phone ?? v.visitorPhone ?? '',
+      visitorEmail: v.visitor?.email ?? v.visitorEmail ?? null,
+      hostName: v.host.fullName,
+      purpose: v.purpose,
+      status: v.status,
+      entryCode: v.entryCode,
+      checkInTime: v.checkInTime?.toISOString() ?? null,
+      checkOutTime: v.checkOutTime?.toISOString() ?? null,
+      expectedTime: v.expectedTime?.toISOString() ?? null,
+      photoUrl: v.visitor?.photoUrl ?? v.photoUrl,
+      signatureUrl: v.signatureUrl,
+      consentAcceptedAt: v.consentAcceptedAt?.toISOString() ?? null,
+      consentVersion: v.consentVersion,
+      autoCheckedOut: v.autoCheckedOut,
+      hostResponse: resp?.message ?? null,
+    };
+  }
 
   /** Today's visits + anyone still on site (PRD §4.3 board / §4.10 roll call). */
   async getToday(): Promise<BoardVisit[]> {
