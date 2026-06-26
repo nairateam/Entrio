@@ -53,7 +53,9 @@ export class OverstayService {
       if (already > 0) continue;
 
       const visitorName = visitorDisplayName(v, 'A visitor');
-      const recipientIds = [...new Set([v.hostId, ...security.map((s) => s.id)])];
+      const recipientIds = [
+        ...new Set([...(v.hostId ? [v.hostId] : []), ...security.map((s) => s.id)]),
+      ];
 
       await this.prisma.notification.createMany({
         data: recipientIds.map((recipientId) => ({

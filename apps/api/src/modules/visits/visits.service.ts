@@ -44,7 +44,10 @@ export interface BoardVisit {
   visitorName: string;
   visitorPhone: string;
   photoUrl: string | null;
-  hostName: string;
+  /** Null until the front desk assigns a host (self-service walk-ins). */
+  hostName: string | null;
+  /** The host the walk-in visitor typed, pending staff assignment. */
+  requestedHostName: string | null;
   purpose: string | null;
   status: VisitStatus;
   checkInTime: string | null;
@@ -109,7 +112,8 @@ export class VisitsService {
       visitorName: visitorDisplayName(v),
       visitorPhone: v.visitor?.phone ?? v.visitorPhone ?? '',
       visitorEmail: v.visitor?.email ?? v.visitorEmail ?? null,
-      hostName: v.host.fullName,
+      hostName: v.host?.fullName ?? null,
+      requestedHostName: v.requestedHostName,
       purpose: v.purpose,
       status: v.status,
       entryCode: v.entryCode,
@@ -399,7 +403,8 @@ export class VisitsService {
   async selfServiceCheckIn(params: {
     visitorId?: string | null;
     expectedVisitId?: string | null;
-    hostId: string;
+    hostId?: string | null;
+    requestedHostName?: string | null;
     purpose?: string | null;
     visitorName?: string | null;
     visitorPhone?: string | null;
@@ -429,7 +434,8 @@ export class VisitsService {
 
     const visitData = {
       visitorId: params.visitorId ?? null,
-      hostId,
+      hostId: hostId ?? null,
+      requestedHostName: params.requestedHostName?.trim() || null,
       purpose: params.purpose?.trim() || null,
       status: VisitStatus.checked_in,
       entryCode,
@@ -452,14 +458,26 @@ export class VisitsService {
       action: 'visitor.self_checked_in',
       targetType: 'visit',
       targetId: visit.id,
-      meta: { deviceId, hostId, fromExpected },
+      meta: { deviceId, hostId: hostId ?? null, fromExpected },
     });
 
-    // Notify the host (in-app bell + optional push), same as the staff flow.
     const name = visitorDisplayName(visit, 'A visitor');
+    if (hostId) {
+      // Pre-registered (host known): notify the host of the arrival.
+      await this.notifyHostArrival(visit.id, hostId, name);
+    } else {
+      // Walk-in with no host yet: ask the front desk to assign one.
+      await this.notifyHostAssignment(visit, name);
+    }
+
+    return { visit: this.toBoard(visit), entryCode };
+  }
+
+  /** Notify a host that their visitor arrived (in-app bell + optional push). */
+  private async notifyHostArrival(visitId: string, hostId: string, visitorName: string): Promise<void> {
     await this.prisma.notification.create({
       data: {
-        visitId: visit.id,
+        visitId,
         recipientId: hostId,
         type: NotificationType.arrival_alert,
         channel: NotificationChannel.in_app,
@@ -468,12 +486,36 @@ export class VisitsService {
     if (this.settings.get().pushNotifications) {
       await this.push.sendToUser(hostId, {
         title: 'Visitor arrived',
-        body: `${name} is here to see you.`,
+        body: `${visitorName} is here to see you.`,
         url: '/host',
       });
     }
+  }
 
-    return { visit: this.toBoard(visit), entryCode };
+  /** Alert active Security/Admin that a walk-in needs a host assigned (PRD v2). */
+  private async notifyHostAssignment(visit: VisitWithRefs, visitorName: string): Promise<void> {
+    const staff = await this.prisma.user.findMany({
+      where: { role: { in: [UserRole.security, UserRole.admin] }, isActive: true },
+      select: { id: true },
+    });
+    const requested = visit.requestedHostName ? ` (to see "${visit.requestedHostName}")` : '';
+    const message = `New walk-in needs a host assigned: ${visitorName}${requested}.`;
+    await this.prisma.notification.createMany({
+      data: staff.map((u) => ({
+        visitId: visit.id,
+        recipientId: u.id,
+        type: NotificationType.host_assignment,
+        channel: NotificationChannel.in_app,
+        message,
+      })),
+    });
+    if (this.settings.get().pushNotifications) {
+      await Promise.all(
+        staff.map((u) =>
+          this.push.sendToUser(u.id, { title: 'Assign a host', body: message, url: '/security/board' }),
+        ),
+      );
+    }
   }
 
   /**
@@ -484,7 +526,8 @@ export class VisitsService {
    */
   async recordSelfServiceException(params: {
     visitorId?: string | null;
-    hostId: string;
+    hostId?: string | null;
+    requestedHostName?: string | null;
     purpose?: string | null;
     visitorName?: string | null;
     visitorPhone?: string | null;
@@ -496,7 +539,8 @@ export class VisitsService {
     const denied = await this.prisma.visit.create({
       data: {
         visitorId: params.visitorId ?? null,
-        hostId,
+        hostId: hostId ?? null,
+        requestedHostName: params.requestedHostName?.trim() || null,
         purpose: params.purpose?.trim() || null,
         status: VisitStatus.denied,
         visitorName: params.visitorName?.trim() || null,
@@ -510,7 +554,7 @@ export class VisitsService {
       action: 'visit.self_service_exception',
       targetType: 'visit',
       targetId: denied.id,
-      meta: { deviceId, reason, hostId },
+      meta: { deviceId, reason, hostId: hostId ?? null },
     });
 
     const staff = await this.prisma.user.findMany({
@@ -518,7 +562,8 @@ export class VisitsService {
       select: { id: true },
     });
     const visitorName = visitorDisplayName(denied, 'A visitor');
-    const message = `Self-service check-in blocked (${REASON_LABEL[reason]}): ${visitorName} → ${denied.host.fullName}.`;
+    const hostName = denied.host?.fullName ?? denied.requestedHostName ?? 'unassigned';
+    const message = `Self-service check-in blocked (${REASON_LABEL[reason]}): ${visitorName} → ${hostName}.`;
 
     await this.prisma.notification.createMany({
       data: staff.map((u) => ({
@@ -565,6 +610,36 @@ export class VisitsService {
   }
 
   /**
+   * Front desk assigns a host to a walk-in that checked in without one (PRD v2),
+   * then nudges that host. Staff-only (the directory is never exposed to visitors).
+   */
+  async assignHost(visitId: string, hostId: string, actorId: string): Promise<BoardVisit> {
+    const visit = await this.prisma.visit.findUnique({ where: { id: visitId } });
+    if (!visit) throw new NotFoundException('Visit not found.');
+    const host = await this.prisma.user.findUnique({ where: { id: hostId } });
+    if (!host || host.role !== UserRole.host) throw new NotFoundException('Host not found.');
+
+    const updated = await this.prisma.visit.update({
+      where: { id: visitId },
+      data: { hostId, requestedHostName: null },
+      include: boardInclude,
+    });
+    await this.audit.log({
+      actorId,
+      action: 'visit.host_assigned',
+      targetType: 'visit',
+      targetId: visitId,
+      meta: { hostId, requestedHostName: visit.requestedHostName },
+    });
+
+    // Nudge the newly-assigned host if the visitor is on site.
+    if (updated.status === VisitStatus.checked_in) {
+      await this.notifyHostArrival(visitId, hostId, visitorDisplayName(updated, 'A visitor'));
+    }
+    return this.toBoard(updated);
+  }
+
+  /**
    * Confirm a pending `expected` visit from its code (pre-reg check-in). Returns
    * only what the device needs to confirm validity + show the host — never the
    * visit id, full phone, or photo, so a guessed code can't harvest PII.
@@ -577,7 +652,7 @@ export class VisitsService {
     if (!visit || visit.status !== VisitStatus.expected) {
       throw new NotFoundException('No pending visit found for that code.');
     }
-    return { hostName: visit.host.fullName, purpose: visit.purpose };
+    return { hostName: visit.host?.fullName ?? '—', purpose: visit.purpose };
   }
 
   /**
@@ -598,7 +673,7 @@ export class VisitsService {
     }
     return {
       visitorName: visitorDisplayName(visit),
-      hostName: visit.host.fullName,
+      hostName: visit.host?.fullName ?? '—',
       checkInTime: visit.checkInTime?.toISOString() ?? null,
     };
   }
@@ -633,7 +708,8 @@ export class VisitsService {
       visitorName: visitorDisplayName(v),
       visitorPhone: v.visitor?.phone ?? v.visitorPhone ?? '',
       photoUrl: v.visitor?.photoUrl ?? v.photoUrl,
-      hostName: v.host.fullName,
+      hostName: v.host?.fullName ?? null,
+      requestedHostName: v.requestedHostName,
       purpose: v.purpose,
       status: v.status,
       checkInTime: v.checkInTime?.toISOString() ?? null,

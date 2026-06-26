@@ -19,3 +19,22 @@ export function flagVisit(visitorId: string, note: string): Promise<void> {
     body: JSON.stringify({ note }),
   });
 }
+
+/** Staff-only host directory (for assigning a walk-in's host). */
+export interface DirectoryHost {
+  id: string;
+  fullName: string;
+  department: string | null;
+}
+
+export function getHostDirectory(): Promise<DirectoryHost[]> {
+  return apiFetch<DirectoryHost[]>('/api/hosts');
+}
+
+/** Assign a host to a walk-in that checked in without one (PRD v2) — nudges the host. */
+export function assignHost(visitId: string, hostId: string): Promise<BoardVisit> {
+  return apiFetch<BoardVisit>(`/api/visits/${visitId}/assign-host`, {
+    method: 'POST',
+    body: JSON.stringify({ hostId }),
+  });
+}

@@ -73,7 +73,7 @@ export function WhosInside({
                     <span className="font-medium">{visit.visitorName}</span>
                   </button>
                 </TableCell>
-                <TableCell>{visit.hostName}</TableCell>
+                <TableCell>{visit.hostName ?? 'Assigning…'}</TableCell>
                 <TableCell className="text-muted-foreground">{visit.purpose ?? '—'}</TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatTime(visit.checkInTime)}

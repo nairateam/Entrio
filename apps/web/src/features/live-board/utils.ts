@@ -31,7 +31,7 @@ export function filterVisits(
     if (status !== 'all' && v.status !== status) return false;
     if (!q) return true;
     const byName = v.visitorName.toLowerCase().includes(q);
-    const byHost = v.hostName.toLowerCase().includes(q);
+    const byHost = (v.hostName ?? v.requestedHostName ?? '').toLowerCase().includes(q);
     const byPhone = qDigits.length >= 3 && digits(v.visitorPhone).includes(qDigits);
     return byName || byHost || byPhone;
   });

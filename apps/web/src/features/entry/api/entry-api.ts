@@ -5,19 +5,13 @@ import type {
   CheckInResult,
   ConsentPolicy,
   EntryActiveVisit,
-  EntryHost,
   PreRegLookup,
 } from '../types';
-
-const qs = (q: string) => `?q=${encodeURIComponent(q)}`;
 
 export const entryApi = {
   consent: () => entryFetch<ConsentPolicy>('/api/self-service/consent'),
 
   // check-in
-  searchHosts: (q: string) => entryFetch<EntryHost[]>(`/api/self-service/hosts/search${qs(q)}`),
-  /** Full active-host directory (fetched once, filtered client-side). */
-  listHosts: () => entryFetch<EntryHost[]>('/api/self-service/hosts/search'),
   /** Validate a pre-registration code (returns host/purpose only — no id/PII). */
   lookupByCode: (code: string) =>
     entryFetch<PreRegLookup>(`/api/self-service/visits/by-code/${encodeURIComponent(code)}`),

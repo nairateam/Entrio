@@ -22,6 +22,8 @@ import { VisitsTable } from './visits-table';
 import { WhosInside } from './whos-inside';
 import { CheckOutModal } from './check-out-modal';
 import { FlagModal } from './flag-modal';
+import { AssignHostModal } from './assign-host-modal';
+import type { BoardVisit } from '../types';
 
 export function LiveBoard() {
   const { data: visits = [], isLoading, isError } = useTodayVisits();
@@ -34,6 +36,7 @@ export function LiveBoard() {
   const requestCheckout = useLiveBoardUiStore((s) => s.requestCheckout);
   const requestFlag = useLiveBoardUiStore((s) => s.requestFlag);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [assignVisit, setAssignVisit] = useState<BoardVisit | null>(null);
 
   const inside = useMemo(() => insideVisits(visits), [visits]);
   const filtered = useMemo(
@@ -118,6 +121,7 @@ export function LiveBoard() {
             onCheckout={requestCheckout}
             onFlag={requestFlag}
             onView={(v) => setDetailId(v.id)}
+            onAssign={setAssignVisit}
           />
         </div>
       )}
@@ -125,6 +129,7 @@ export function LiveBoard() {
       <CheckOutModal />
       <FlagModal />
       <VisitDetailDrawer visitId={detailId} onClose={() => setDetailId(null)} />
+      <AssignHostModal visit={assignVisit} onClose={() => setAssignVisit(null)} />
     </div>
   );
 }

@@ -17,11 +17,10 @@ import { entryApi } from '../api/entry-api';
 import { useAutoReturn } from '../hooks/use-auto-return';
 import { useConsent } from '../hooks/use-consent';
 import { useRequireDevice } from '../hooks/use-require-device';
-import type { CheckInInput, CheckInResult, EntryHost, PreRegLookup } from '../types';
+import type { CheckInInput, CheckInResult, PreRegLookup } from '../types';
 import { EntryShell } from './entry-shell';
 import { EntryButton } from './entry-button';
 import { EntryStepper } from './entry-stepper';
-import { HostCombobox } from './host-combobox';
 import { CodeField } from './code-field';
 import { EntryResult } from './entry-result';
 import { PhotoCapture } from './photo-capture';
@@ -44,8 +43,7 @@ export function EntryCheckIn() {
   // is what's submitted — the server resolves the expected visit from it.
   const [prereg, setPrereg] = useState<PreRegLookup | null>(null);
 
-  const [info, setInfo] = useState({ fullName: '', phone: '', email: '', purpose: '' });
-  const [host, setHost] = useState<EntryHost | null>(null);
+  const [info, setInfo] = useState({ fullName: '', phone: '', email: '', purpose: '', requestedHost: '' });
 
   const [photo, setPhoto] = useState<string | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
@@ -78,7 +76,7 @@ export function EntryCheckIn() {
                 phone: info.phone.trim(),
                 email: info.email.trim() || undefined,
               },
-              hostId: host?.id,
+              requestedHost: info.requestedHost.trim() || undefined,
             }),
       };
       return entryApi.checkIn(input);
@@ -165,7 +163,7 @@ export function EntryCheckIn() {
 
   // --- Step: walk-in info ---------------------------------------------------
   if (step === 'info') {
-    const valid = info.fullName.trim() && info.phone.trim().length >= 3 && host;
+    const valid = info.fullName.trim() && info.phone.trim().length >= 3 && info.requestedHost.trim();
     return (
       <EntryShell
         key="info"
@@ -204,8 +202,13 @@ export function EntryCheckIn() {
             </Field>
           </div>
 
-          <Field label="Who are you visiting?">
-            <HostCombobox value={host} onChange={setHost} />
+          <Field label="Who are you here to see?">
+            <Input
+              value={info.requestedHost}
+              onChange={(e) => setInfo((s) => ({ ...s, requestedHost: e.target.value }))}
+              placeholder="e.g. Sarah Chen, Engineering"
+              className="h-12 border-border text-base"
+            />
           </Field>
 
           <Field label="Purpose">

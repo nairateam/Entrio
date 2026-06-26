@@ -269,7 +269,7 @@ export class HostsService {
     await Promise.all(
       recipientIds.map((recipientId) =>
         this.push.sendToUser(recipientId, {
-          title: `${visit.host.fullName} replied`,
+          title: `${visit.host?.fullName ?? 'Host'} replied`,
           body: `Re ${visitorDisplayName(visit, 'the visitor')}: ${body}`,
           url: '/security/board',
         }),
@@ -345,7 +345,7 @@ export class HostsService {
   private toVisitView(v: VisitWithVisitor): HostVisitView {
     return {
       id: v.id,
-      hostId: v.hostId,
+      hostId: v.hostId ?? '',
       // Self-service walk-ins keep their details on the visit, with no Visitor row.
       visitorName: visitorDisplayName(v),
       visitorPhone: v.visitor?.phone ?? v.visitorPhone ?? '',

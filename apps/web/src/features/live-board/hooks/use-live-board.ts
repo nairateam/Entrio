@@ -33,3 +33,22 @@ export function useFlagVisitor() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: visitsKeys.today }),
   });
 }
+
+/** Staff host directory (for assigning a walk-in's host). Cached briefly. */
+export function useHostDirectory() {
+  return useQuery({
+    queryKey: ['hosts', 'directory'],
+    queryFn: api.getHostDirectory,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Assign a host to a walk-in, then refresh the board. */
+export function useAssignHost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ visitId, hostId }: { visitId: string; hostId: string }) =>
+      api.assignHost(visitId, hostId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: visitsKeys.today }),
+  });
+}

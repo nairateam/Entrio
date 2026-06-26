@@ -5,12 +5,6 @@ export interface ConsentPolicy {
   text: string;
 }
 
-export interface EntryHost {
-  id: string;
-  fullName: string;
-  department: string | null;
-}
-
 /** A currently-checked-in visit, for the check-out roster (PRD v2 §3.3). Minimal
  * by design — no visit id or photo; check-out is keyed on the visitor's own code. */
 export interface EntryActiveVisit {
@@ -42,7 +36,8 @@ export interface CheckInInput {
   entryCode?: string;
   /** Walk-in details captured this visit (no Visitor record kept). */
   newVisitor?: { fullName: string; phone: string; email?: string };
-  hostId?: string;
+  /** Walk-in: the host the visitor typed (free text); front desk assigns the real host. */
+  requestedHost?: string;
   purpose?: string;
   /** Base64 headshot + drawn signature captured at the device. */
   headshot?: string;

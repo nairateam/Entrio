@@ -39,10 +39,13 @@ export class SelfCheckInDto {
   @Type(() => NewVisitorDto)
   newVisitor?: NewVisitorDto;
 
-  @ApiPropertyOptional({ description: 'Host being visited — required for walk-ins; ignored for pre-registered.' })
+  @ApiPropertyOptional({
+    description:
+      "Walk-in path: the host the visitor typed (free text). No directory is exposed to visitors — front desk assigns the actual host and nudges them.",
+  })
   @IsOptional()
   @IsString()
-  hostId?: string;
+  requestedHost?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
