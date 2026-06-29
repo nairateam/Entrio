@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Upload } from 'lucide-react';
 import { UserRole, type User } from '@entrio/types';
 import { Avatar, Badge, Button, Switch } from '@/components/ui';
 import {
@@ -14,12 +14,14 @@ import { ROLE_LABELS } from '@/config/navigation';
 import { initials } from '@/lib/format';
 import { useSetUserActive, useUsers } from '../hooks/use-users';
 import { InviteUserModal } from './invite-user-modal';
+import { BulkUploadModal } from './bulk-upload-modal';
 
 const ROLE_OPTIONS = Object.values(UserRole).map((r) => ({ value: r, label: ROLE_LABELS[r] }));
 
 export function UsersTable() {
   const [state, setState] = useState<TableState>(() => initialTableState());
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const setActive = useSetUserActive();
 
   const { data, isLoading, isFetching, isError } = useUsers({
@@ -85,13 +87,20 @@ export function UsersTable() {
         search={{ placeholder: 'Search name or email…' }}
         filters={[{ id: 'role', label: 'roles', options: ROLE_OPTIONS }]}
         toolbar={
-          <Button onClick={() => setInviteOpen(true)}>
-            <UserPlus className="h-4 w-4" />
-            Invite user
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setBulkOpen(true)}>
+              <Upload className="h-4 w-4" />
+              Bulk upload
+            </Button>
+            <Button onClick={() => setInviteOpen(true)}>
+              <UserPlus className="h-4 w-4" />
+              Invite user
+            </Button>
+          </div>
         }
       />
       <InviteUserModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
+      <BulkUploadModal open={bulkOpen} onClose={() => setBulkOpen(false)} />
     </>
   );
 }

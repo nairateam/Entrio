@@ -116,6 +116,58 @@ export class UsersService {
    * isn't configured, the link is logged so the flow is still testable.
    */
   async invite(dto: InviteUserDto, actorId: string): Promise<PublicUser> {
+    return this.inviteOne(dto, actorId);
+  }
+
+  /**
+   * Invite a batch of users in one request (admin CSV upload). Each row is
+   * processed independently: a duplicate or invalid row is reported in `failed`
+   * without aborting the rest. Returns a per-row summary.
+   */
+  async bulkInvite(
+    rows: InviteUserDto[],
+    actorId: string,
+  ): Promise<{
+    created: PublicUser[];
+    failed: Array<{ index: number; email: string; reason: string }>;
+    total: number;
+  }> {
+    const created: PublicUser[] = [];
+    const failed: Array<{ index: number; email: string; reason: string }> = [];
+    const seen = new Set<string>();
+
+    for (let i = 0; i < rows.length; i += 1) {
+      const dto = rows[i];
+      const email = dto.email.trim().toLowerCase();
+      // Catch duplicates within the same file before hitting the DB.
+      if (seen.has(email)) {
+        failed.push({ index: i, email, reason: 'Duplicate email in this file.' });
+        continue;
+      }
+      seen.add(email);
+      try {
+        created.push(await this.inviteOne(dto, actorId));
+      } catch (err) {
+        const reason =
+          err instanceof ConflictException
+            ? 'A user with that email already exists.'
+            : 'Could not invite.';
+        failed.push({ index: i, email, reason });
+      }
+    }
+
+    await this.audit.log({
+      actorId,
+      action: 'user.bulk_invited',
+      targetType: 'user',
+      targetId: 'bulk',
+      meta: { total: rows.length, created: created.length, failed: failed.length },
+    });
+    return { created, failed, total: rows.length };
+  }
+
+  /** Create one invited (active-pending) account + email the set-password link. */
+  private async inviteOne(dto: InviteUserDto, actorId: string): Promise<PublicUser> {
     const email = dto.email.trim().toLowerCase();
     if (await this.prisma.user.findUnique({ where: { email } })) {
       throw new ConflictException('A user with that email already exists.');

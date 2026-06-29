@@ -47,3 +47,14 @@ export function useInviteUser() {
     },
   });
 }
+
+export function useBulkInviteUsers() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (users: InviteInput[]) => api.bulkInviteUsers(users),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+    },
+  });
+}

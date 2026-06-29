@@ -7,6 +7,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { parsePageArgs } from '../../common/pagination';
 import { InviteUserDto } from './dto/invite-user.dto';
+import { BulkInviteDto } from './dto/bulk-invite.dto';
 import { SetActiveDto } from './dto/set-active.dto';
 import { UsersService } from './users.service';
 
@@ -33,6 +34,12 @@ export class UsersController {
   @Post()
   invite(@Body() dto: InviteUserDto, @CurrentUser() user: AuthUser) {
     return this.users.invite(dto, user.id);
+  }
+
+  // Batch invite from a CSV upload — per-row results, never aborts on one bad row.
+  @Post('bulk')
+  bulkInvite(@Body() dto: BulkInviteDto, @CurrentUser() user: AuthUser) {
+    return this.users.bulkInvite(dto.users, user.id);
   }
 
   @Patch(':id')
