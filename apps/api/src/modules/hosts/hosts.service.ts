@@ -1,10 +1,11 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { NotificationChannel, NotificationType, Prisma, VisitStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { visitorDisplayName } from '../../common/visit-name';
 import { PushService } from '../../integrations/web-push/push.service';
 import { EmailService } from '../../integrations/email/email.service';
 import { preRegisterEmail } from '../../integrations/email/email.templates';
-import { generateEntryCode } from '../../common/entry-code';
+import { allocateEntryCode } from '../../common/entry-code';
 import { paginated, type PageArgs, type Paginated } from '../../common/pagination';
 import { AuditService } from '../audit/audit.service';
 import type { AddRestrictionDto } from './dto/add-restriction.dto';
@@ -135,7 +136,7 @@ export class HostsService {
   async preRegister(hostId: string, dto: PreRegisterDto): Promise<HostVisitView> {
     const visitor = await this.upsertVisitor(dto.visitorName, dto.visitorPhone, dto.visitorEmail);
     const expectedTime = new Date(`${dto.expectedDate}T${dto.expectedTime}:00`);
-    const entryCode = await this.uniqueEntryCode();
+    const entryCode = await allocateEntryCode(this.prisma);
 
     const visit = await this.prisma.visit.create({
       data: {
@@ -268,8 +269,8 @@ export class HostsService {
     await Promise.all(
       recipientIds.map((recipientId) =>
         this.push.sendToUser(recipientId, {
-          title: `${visit.host.fullName} replied`,
-          body: `Re ${visit.visitor?.fullName ?? visit.visitorName ?? 'the visitor'}: ${body}`,
+          title: `${visit.host?.fullName ?? 'Host'} replied`,
+          body: `Re ${visitorDisplayName(visit, 'the visitor')}: ${body}`,
           url: '/security/board',
         }),
       ),
@@ -341,22 +342,12 @@ export class HostsService {
     });
   }
 
-  /** Allocate an unused 4-digit entry code (only active visits hold codes). */
-  private async uniqueEntryCode(): Promise<string> {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const code = generateEntryCode();
-      const clash = await this.prisma.visit.findUnique({ where: { entryCode: code }, select: { id: true } });
-      if (!clash) return code;
-    }
-    throw new Error('Could not allocate an entry code.');
-  }
-
   private toVisitView(v: VisitWithVisitor): HostVisitView {
     return {
       id: v.id,
-      hostId: v.hostId,
+      hostId: v.hostId ?? '',
       // Self-service walk-ins keep their details on the visit, with no Visitor row.
-      visitorName: v.visitor?.fullName ?? v.visitorName ?? 'Visitor',
+      visitorName: visitorDisplayName(v),
       visitorPhone: v.visitor?.phone ?? v.visitorPhone ?? '',
       visitorEmail: v.visitor?.email ?? v.visitorEmail ?? null,
       photoUrl: v.visitor?.photoUrl ?? v.photoUrl,

@@ -88,8 +88,8 @@ export class VisitorsService {
         expectedVisit: expected
           ? {
               id: expected.id,
-              hostId: expected.hostId,
-              hostName: expected.host.fullName,
+              hostId: expected.hostId ?? '',
+              hostName: expected.host?.fullName ?? '—',
               purpose: expected.purpose,
               expectedTime: expected.expectedTime?.toISOString() ?? null,
             }

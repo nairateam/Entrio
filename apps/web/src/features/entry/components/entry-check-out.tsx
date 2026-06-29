@@ -1,27 +1,21 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, KeyRound, LogOut, Search, Smile } from 'lucide-react';
-import { Input, toast } from '@/components/ui';
+import { ArrowRight, LogOut, Search, Smile } from 'lucide-react';
+import { toast } from '@/components/ui';
 import { ApiError } from '@/lib/api/client';
 import { formatTime, initials } from '@/lib/format';
 import { entryApi } from '../api/entry-api';
 import { useAutoReturn } from '../hooks/use-auto-return';
 import { useRequireDevice } from '../hooks/use-require-device';
-import type { EntryActiveVisit } from '../types';
+import type { ActiveLookup } from '../types';
 import { EntryShell } from './entry-shell';
 import { EntryButton } from './entry-button';
+import { CodeField } from './code-field';
+import { EntryResult } from './entry-result';
 
 type Step = 'list' | 'code' | 'confirm' | 'done';
-
-interface Pending {
-  visitId: string;
-  visitorName: string;
-  hostName: string;
-  checkInTime: string | null;
-}
 
 const activeKey = ['entry', 'active'] as const;
 
@@ -31,9 +25,9 @@ export function EntryCheckOut() {
   const [step, setStep] = useState<Step>('list');
   const [query, setQuery] = useState('');
   const [code, setCode] = useState('');
-  const [pending, setPending] = useState<Pending | null>(null);
+  const [pending, setPending] = useState<ActiveLookup | null>(null);
 
-  // The "inside now" list — fetched, kept fresh, filtered client-side.
+  // The "inside now" roster — for finding yourself; check-out still needs your code.
   const { data: active = [], isLoading } = useQuery({
     queryKey: activeKey,
     queryFn: () => entryApi.listActive(),
@@ -50,10 +44,11 @@ export function EntryCheckOut() {
     );
   }, [active, query]);
 
+  // Validate the typed code and resolve the caller's own active visit.
   const lookupCode = useMutation({
     mutationFn: () => entryApi.lookupActiveByCode(code),
     onSuccess: (v) => {
-      setPending({ visitId: v.id, visitorName: v.visitorName, hostName: v.hostName, checkInTime: v.checkInTime });
+      setPending(v);
       setStep('confirm');
     },
     onError: (e) =>
@@ -61,7 +56,7 @@ export function EntryCheckOut() {
   });
 
   const checkOut = useMutation({
-    mutationFn: () => entryApi.checkOut(pending!.visitId),
+    mutationFn: () => entryApi.checkOut(code),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: activeKey });
       setStep('done');
@@ -73,15 +68,10 @@ export function EntryCheckOut() {
 
   if (!ready) return null;
 
-  const pick = (v: EntryActiveVisit) => {
-    setPending({ visitId: v.visitId, visitorName: v.visitorName, hostName: v.hostName, checkInTime: v.checkInTime });
-    setStep('confirm');
-  };
-
-  // --- Step: inside-now list -----------------------------------------------
+  // --- Step: inside-now roster ---------------------------------------------
   if (step === 'list') {
     return (
-      <EntryShell key="list" title="Check out" subtitle="Tap your name to sign out." onBack={() => history.back()}>
+      <EntryShell key="list" title="Check out" subtitle="Find your name, then enter your code." onBack={() => history.back()}>
         <div className="relative mb-4">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -93,7 +83,7 @@ export function EntryCheckOut() {
           />
         </div>
 
-        <div className="max-h-[24rem] space-y-2 overflow-y-auto pr-0.5">
+        <div className="max-h-80 space-y-2 overflow-y-auto pr-0.5">
           {isLoading ? (
             <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
           ) : matches.length === 0 ? (
@@ -101,13 +91,15 @@ export function EntryCheckOut() {
               {active.length === 0 ? 'No one is currently checked in.' : 'No match — try a different name.'}
             </p>
           ) : (
-            matches.map((v) => (
+            matches.map((v, i) => (
               <button
-                key={v.visitId}
-                onClick={() => pick(v)}
+                key={`${v.visitorName}-${v.checkInTime ?? i}`}
+                onClick={() => setStep('code')}
                 className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.99]"
               >
-                <Avatar name={v.visitorName} photoUrl={v.photoUrl} />
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
+                  {initials(v.visitorName)}
+                </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-foreground">{v.visitorName}</p>
                   <p className="truncate text-xs text-muted-foreground">
@@ -121,20 +113,17 @@ export function EntryCheckOut() {
           )}
         </div>
 
-        <button
-          onClick={() => setStep('code')}
-          className="mx-auto mt-6 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-        >
-          <KeyRound className="h-4 w-4" /> Have an entry code instead?
-        </button>
+        <EntryButton size="lg" className="mt-6 h-12 w-full" onClick={() => setStep('code')}>
+          Check out with my code <ArrowRight className="h-5 w-5" />
+        </EntryButton>
       </EntryShell>
     );
   }
 
-  // --- Step: code fallback --------------------------------------------------
+  // --- Step: enter code -----------------------------------------------------
   if (step === 'code') {
     return (
-      <EntryShell key="co-code" title="Enter your code" onBack={() => setStep('list')}>
+      <EntryShell key="co-code" title="Enter your code" subtitle="The code from your check-in." onBack={() => setStep('list')}>
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -142,15 +131,7 @@ export function EntryCheckOut() {
             lookupCode.mutate();
           }}
         >
-          <Input
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            placeholder="0000"
-            inputMode="numeric"
-            maxLength={4}
-            className="h-16 border-border text-center text-4xl font-semibold tracking-[0.4em]"
-            autoFocus
-          />
+          <CodeField value={code} onChange={setCode} />
           <EntryButton type="submit" size="lg" className="h-12 w-full" isLoading={lookupCode.isPending} disabled={!code.trim()}>
             Continue <ArrowRight className="h-5 w-5" />
           </EntryButton>
@@ -162,7 +143,7 @@ export function EntryCheckOut() {
   // --- Step: confirm --------------------------------------------------------
   if (step === 'confirm' && pending) {
     return (
-      <EntryShell key="co-confirm" title="Confirm check-out" onBack={() => setStep('list')}>
+      <EntryShell key="co-confirm" title="Confirm check-out" onBack={() => setStep('code')}>
         <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary/10">
             <LogOut className="h-7 w-7 text-primary" />
@@ -186,31 +167,17 @@ export function EntryCheckOut() {
 
   // --- Step: done -----------------------------------------------------------
   return (
-    <EntryShell key="co-done">
-      <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+    <EntryResult
+      shellKey="co-done"
+      title="Thanks for visiting!"
+      returnIn={returnIn}
+      icon={
         <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-success/10">
           <Smile className="h-9 w-9 text-success" />
         </div>
-        <h1 className="mt-5 text-3xl font-bold text-foreground">Thanks for visiting!</h1>
-        <p className="mt-2 text-base text-muted-foreground">Have a great day.</p>
-        <EntryButton asChild entryVariant="soft" size="lg" className="mt-7 w-full">
-          <Link href="/">Done</Link>
-        </EntryButton>
-        <p className="mt-4 text-xs text-muted-foreground">Returning to start in {returnIn}s…</p>
-      </div>
-    </EntryShell>
-  );
-}
-
-/** Badge-photo avatar, falling back to initials. */
-function Avatar({ name, photoUrl }: { name: string; photoUrl: string | null }) {
-  if (photoUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={photoUrl} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />;
-  }
-  return (
-    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
-      {initials(name)}
-    </div>
+      }
+    >
+      <p className="mt-2 text-base text-muted-foreground">Have a great day.</p>
+    </EntryResult>
   );
 }

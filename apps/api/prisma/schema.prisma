@@ -35,6 +35,7 @@ enum NotificationType {
   overstay_alert
   host_response
   self_service_exception
+  host_assignment
 }
 
 enum NotificationChannel {
@@ -130,7 +131,10 @@ model Visit {
   id                    String      @id @default(cuid())
   /// Optional: self-service walk-ins capture details inline (below) with no Visitor row.
   visitorId             String?     @map("visitor_id")
-  hostId                String      @map("host_id")
+  /// Optional: a walk-in checks in before staff assign the host (PRD v2). Until then
+  /// `requestedHostName` holds the host the visitor typed.
+  hostId                String?     @map("host_id")
+  requestedHostName     String?     @map("requested_host_name")
   /// Denormalized visitor details for self-service walk-ins (PRD v2 — no Visitor record).
   visitorName           String?     @map("visitor_name")
   visitorPhone          String?     @map("visitor_phone")
@@ -160,7 +164,7 @@ model Visit {
   createdAt             DateTime    @default(now()) @map("created_at")
 
   visitor            Visitor?       @relation(fields: [visitorId], references: [id])
-  host               User           @relation("VisitHost", fields: [hostId], references: [id])
+  host               User?          @relation("VisitHost", fields: [hostId], references: [id])
   checkedInBy        User?          @relation("VisitCheckedInBy", fields: [checkedInById], references: [id])
   checkedOutBy       User?          @relation("VisitCheckedOutBy", fields: [checkedOutById], references: [id])
   overrideApprovedBy User?          @relation("VisitOverrideApprovedBy", fields: [overrideApprovedById], references: [id])

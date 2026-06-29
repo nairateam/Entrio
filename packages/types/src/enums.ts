@@ -28,6 +28,8 @@ export enum NotificationType {
   HOST_RESPONSE = 'host_response',
   /** Self-service check-in hit a gate (blocklist / restriction / after-hours) — staff must step in. */
   SELF_SERVICE_EXCEPTION = 'self_service_exception',
+  /** A walk-in checked in without a host — front desk must assign one. */
+  HOST_ASSIGNMENT = 'host_assignment',
 }
 
 /** Delivery channel for a notification. */

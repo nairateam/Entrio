@@ -25,10 +25,13 @@ export class NewVisitorDto {
 }
 
 export class SelfCheckInDto {
-  @ApiPropertyOptional({ description: 'Pre-registered path: the expected visit resolved from the typed code.' })
+  @ApiPropertyOptional({
+    description:
+      'Pre-registered path: the typed entry code. The server resolves the expected visit from this code — clients never pass a visit id (prevents impersonation via a guessable/returned id).',
+  })
   @IsOptional()
   @IsString()
-  expectedVisitId?: string;
+  entryCode?: string;
 
   @ApiPropertyOptional({ type: NewVisitorDto, description: 'Walk-in path: the details captured this visit (no Visitor record kept).' })
   @IsOptional()
@@ -36,10 +39,13 @@ export class SelfCheckInDto {
   @Type(() => NewVisitorDto)
   newVisitor?: NewVisitorDto;
 
-  @ApiPropertyOptional({ description: 'Host being visited — required for walk-ins; ignored for pre-registered.' })
+  @ApiPropertyOptional({
+    description:
+      "Walk-in path: the host the visitor typed (free text). No directory is exposed to visitors — front desk assigns the actual host and nudges them.",
+  })
   @IsOptional()
   @IsString()
-  hostId?: string;
+  requestedHost?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { visitorDisplayName } from '../../common/visit-name';
 
 const notificationInclude = {
   visit: {
     select: {
       visitorName: true,
+      requestedHostName: true,
       visitor: { select: { fullName: true } },
       host: { select: { fullName: true } },
     },
@@ -14,7 +16,7 @@ const notificationInclude = {
 type NotificationWithRefs = Prisma.NotificationGetPayload<{ include: typeof notificationInclude }>;
 
 /** UI category for the inbox (web NotificationItem.type). */
-type NotificationCategory = 'arrival' | 'override' | 'overstay' | 'response' | 'exception';
+type NotificationCategory = 'arrival' | 'override' | 'overstay' | 'response' | 'exception' | 'assignment';
 
 /** Denormalized inbox item (matches the web NotificationItem shape). */
 export interface NotificationView {
@@ -33,6 +35,7 @@ const CATEGORY: Record<NotificationType, NotificationCategory> = {
   [NotificationType.overstay_alert]: 'overstay',
   [NotificationType.host_response]: 'response',
   [NotificationType.self_service_exception]: 'exception',
+  [NotificationType.host_assignment]: 'assignment',
 };
 
 @Injectable()
@@ -67,8 +70,8 @@ export class NotificationsService {
   // --- helpers ---------------------------------------------------------------
 
   private toView(n: NotificationWithRefs): NotificationView {
-    const visitorName = n.visit.visitor?.fullName ?? n.visit.visitorName ?? 'A visitor';
-    const hostName = n.visit.host.fullName;
+    const visitorName = visitorDisplayName(n.visit, 'A visitor');
+    const hostName = n.visit.host?.fullName ?? n.visit.requestedHostName ?? 'the front desk';
     const { title, body } = this.copy(n.type, visitorName, hostName, n.message);
     return {
       id: n.id,
@@ -107,6 +110,11 @@ export class NotificationsService {
         return {
           title: 'Front-desk attention needed',
           body: message ?? `A self-service check-in for ${visitorName} (host ${hostName}) needs staff assistance.`,
+        };
+      case NotificationType.host_assignment:
+        return {
+          title: 'Assign a host',
+          body: message ?? `Walk-in ${visitorName} needs a host assigned.`,
         };
       default:
         return { title: 'Notification', body: visitorName };

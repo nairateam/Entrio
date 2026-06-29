@@ -12,7 +12,10 @@ export interface BoardVisit {
   visitorName: string;
   visitorPhone: string;
   photoUrl: string | null;
-  hostName: string;
+  /** Null until the front desk assigns a host (self-service walk-ins). */
+  hostName: string | null;
+  /** The host the walk-in visitor typed, pending assignment. */
+  requestedHostName: string | null;
   purpose: string | null;
   status: VisitStatus;
   checkInTime: string | null;

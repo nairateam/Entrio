@@ -7,6 +7,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { parsePageArgs } from '../../common/pagination';
 import { CheckInDto } from './dto/check-in.dto';
+import { AssignHostDto } from './dto/assign-host.dto';
 import { VisitsService } from './visits.service';
 
 type AuthUser = { id: string; role: UserRole };
@@ -51,6 +52,13 @@ export class VisitsController {
   @Roles(...FRONT_DESK)
   checkIn(@Body() dto: CheckInDto, @CurrentUser() user: AuthUser) {
     return this.visits.checkIn(dto, user.id);
+  }
+
+  // Assign a host to a walk-in that checked in without one (PRD v2), then nudge them.
+  @Post(':id/assign-host')
+  @Roles(...FRONT_DESK)
+  assignHost(@Param('id') id: string, @Body() dto: AssignHostDto, @CurrentUser() user: AuthUser) {
+    return this.visits.assignHost(id, dto.hostId, user.id);
   }
 
   @Post(':id/check-out')

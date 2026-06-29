@@ -29,6 +29,20 @@ export function inviteUser(input: InviteInput): Promise<User> {
   return apiFetch<User>('/api/users', { method: 'POST', body: JSON.stringify(input) });
 }
 
+export interface BulkInviteResult {
+  created: User[];
+  failed: Array<{ index: number; email: string; reason: string }>;
+  total: number;
+}
+
+/** Invite many users at once (CSV upload). Returns per-row results. */
+export function bulkInviteUsers(users: InviteInput[]): Promise<BulkInviteResult> {
+  return apiFetch<BulkInviteResult>('/api/users/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ users }),
+  });
+}
+
 /** Admin-managed department options for the invite form's dropdown. */
 export function getDepartmentOptions(): Promise<Array<{ id: string; name: string }>> {
   return apiFetch<Array<{ id: string; name: string }>>('/api/departments');

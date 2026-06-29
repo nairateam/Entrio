@@ -14,7 +14,8 @@ export interface VisitDetail {
   visitorName: string;
   visitorPhone: string;
   visitorEmail: string | null;
-  hostName: string;
+  hostName: string | null;
+  requestedHostName: string | null;
   purpose: string | null;
   status: VisitStatus;
   entryCode: string | null;
@@ -95,7 +96,13 @@ export function VisitDetailDrawer({ visitId, onClose }: { visitId: string | null
           <dl className="space-y-3 text-sm">
             <Row icon={<Phone className="h-4 w-4" />} label="Phone" value={data.visitorPhone || '—'} />
             <Row icon={<Mail className="h-4 w-4" />} label="Email" value={data.visitorEmail || '—'} />
-            <Row label="Host" value={data.hostName} />
+            <Row
+              label="Host"
+              value={
+                data.hostName ??
+                `Assigning…${data.requestedHostName ? ` (asked for ${data.requestedHostName})` : ''}`
+              }
+            />
             <Row label="Purpose" value={data.purpose || '—'} />
             {data.entryCode && <Row label="Entry code" value={data.entryCode} mono />}
             <Row

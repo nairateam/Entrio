@@ -11,6 +11,7 @@ function visit(overrides: Partial<BoardVisit>): BoardVisit {
     visitorPhone: '+1 555 0000',
     photoUrl: null,
     hostName: 'Test Host',
+    requestedHostName: null,
     purpose: null,
     status: VisitStatus.CHECKED_IN,
     checkInTime: null,

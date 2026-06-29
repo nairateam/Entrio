@@ -29,14 +29,9 @@ export class SelfServiceController {
 
   // --- check-in --------------------------------------------------------------
 
-  @Get('hosts/search')
-  searchHosts(@Query('q') q?: string) {
-    return this.selfService.searchHosts(q ?? '');
-  }
-
   @Get('visits/by-code/:code')
   byCode(@Param('code') code: string) {
-    return this.visits.findExpectedByCode(code);
+    return this.visits.lookupExpectedByCode(code);
   }
 
   @Post('check-in')
@@ -53,11 +48,11 @@ export class SelfServiceController {
 
   @Get('checkout/by-code/:code')
   activeByCode(@Param('code') code: string) {
-    return this.visits.findActiveByCode(code);
+    return this.visits.lookupActiveByCode(code);
   }
 
   @Post('check-out')
   checkOut(@Body() dto: SelfCheckOutDto, @CurrentDevice() device: Device) {
-    return this.visits.selfServiceCheckOut(dto.visitId, device.id);
+    return this.selfService.checkOut(dto.entryCode, device.id);
   }
 }

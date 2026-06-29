@@ -21,9 +21,10 @@ interface VisitsTableProps {
   onCheckout: (visit: BoardVisit) => void;
   onFlag: (visit: BoardVisit) => void;
   onView: (visit: BoardVisit) => void;
+  onAssign: (visit: BoardVisit) => void;
 }
 
-export function VisitsTable({ visits, onCheckout, onFlag, onView }: VisitsTableProps) {
+export function VisitsTable({ visits, onCheckout, onFlag, onView, onAssign }: VisitsTableProps) {
   if (visits.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
@@ -62,7 +63,13 @@ export function VisitsTable({ visits, onCheckout, onFlag, onView }: VisitsTableP
               </button>
             </TableCell>
             <TableCell>
-              <div>{visit.hostName}</div>
+              {visit.hostName ? (
+                <div>{visit.hostName}</div>
+              ) : (
+                <span className="text-xs font-medium text-warning">
+                  Assigning…{visit.requestedHostName ? ` (asked for ${visit.requestedHostName})` : ''}
+                </span>
+              )}
               {visit.hostResponse && (
                 <p className="mt-1 flex items-start gap-1 text-xs font-medium text-primary">
                   <MessageSquare className="mt-0.5 h-3 w-3 shrink-0" />
@@ -88,6 +95,11 @@ export function VisitsTable({ visits, onCheckout, onFlag, onView }: VisitsTableP
                   <Eye className="h-4 w-4" />
                   View
                 </Button>
+                {!visit.hostName && visit.status === VisitStatus.CHECKED_IN && (
+                  <Button variant="outline" size="sm" onClick={() => onAssign(visit)}>
+                    Assign host
+                  </Button>
+                )}
                 {/* Walk-in self-service visits have no Visitor record to flag (PRD v2). */}
                 {visit.visitorId &&
                   (visit.status === VisitStatus.CHECKED_IN ||

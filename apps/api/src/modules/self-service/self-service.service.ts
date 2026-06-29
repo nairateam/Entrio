@@ -3,8 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { UserRole, VisitStatus } from '@prisma/client';
+import { VisitStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { visitorDisplayName } from '../../common/visit-name';
+import { normalizeEntryCode } from '../../common/entry-code';
 import { VisitsService } from '../visits/visits.service';
 import type { SelfCheckInDto } from './dto/self-check-in.dto';
 
@@ -23,16 +25,14 @@ export const CONSENT_POLICY = {
 
 /** A currently-checked-in visit, for the streamlined check-out list (PRD v2 §3.3). */
 export interface EntryActiveVisit {
-  visitId: string;
   visitorName: string;
   phoneLast4: string;
-  photoUrl: string | null;
   hostName: string;
   checkInTime: string | null;
 }
 
 export type SelfCheckInResult =
-  | { status: 'success'; visitorName: string; hostName: string; entryCode: string }
+  | { status: 'success'; visitorName: string; hostName: string | null; entryCode: string }
   | { status: 'redirect' };
 
 @Injectable()
@@ -44,25 +44,6 @@ export class SelfServiceService {
 
   consentPolicy() {
     return CONSENT_POLICY;
-  }
-
-  /**
-   * Active hosts a walk-in can choose from (PRD v2 §3 Step 4). With no query this
-   * returns the full directory (the kiosk fetches it once and filters client-side).
-   */
-  async searchHosts(query: string): Promise<Array<{ id: string; fullName: string; department: string | null }>> {
-    const q = query?.trim();
-    const hosts = await this.prisma.user.findMany({
-      where: {
-        role: UserRole.host,
-        isActive: true,
-        ...(q ? { fullName: { contains: q, mode: 'insensitive' as const } } : {}),
-      },
-      select: { id: true, fullName: true, department: true },
-      orderBy: { fullName: 'asc' },
-      take: 1000,
-    });
-    return hosts;
   }
 
   /**
@@ -91,18 +72,18 @@ export class SelfServiceService {
           : {}),
       },
       include: {
-        visitor: { select: { fullName: true, phone: true, photoUrl: true } },
+        visitor: { select: { fullName: true, phone: true } },
         host: { select: { fullName: true } },
       },
       orderBy: { checkInTime: 'desc' },
       take: 1000,
     });
+    // Roster is for confirming you're checked in; it deliberately omits photos and
+    // the visit id (check-out is keyed on the visitor's own entry code, not an id).
     return visits.map((v) => ({
-      visitId: v.id,
-      visitorName: v.visitor?.fullName ?? v.visitorName ?? 'Visitor',
+      visitorName: visitorDisplayName(v),
       phoneLast4: (v.visitor?.phone ?? v.visitorPhone ?? '').slice(-4),
-      photoUrl: v.visitor?.photoUrl ?? v.photoUrl,
-      hostName: v.host.fullName,
+      hostName: v.host?.fullName ?? '—',
       checkInTime: v.checkInTime?.toISOString() ?? null,
     }));
   }
@@ -115,16 +96,20 @@ export class SelfServiceService {
   async checkIn(dto: SelfCheckInDto, deviceId: string): Promise<SelfCheckInResult> {
     if (!dto.consentAccepted) throw new BadRequestException('Consent is required to check in.');
 
-    // --- Pre-registered: fulfill the host-created expected visit (keeps its Visitor) ---
-    if (dto.expectedVisitId) {
-      const expected = await this.prisma.visit.findUnique({ where: { id: dto.expectedVisitId } });
+    // --- Pre-registered: resolve the expected visit from the typed code (server-side).
+    // Clients never pass a visit id, so a returned/guessed id can't drive a check-in. ---
+    if (dto.entryCode) {
+      const expected = await this.prisma.visit.findUnique({
+        where: { entryCode: normalizeEntryCode(dto.entryCode) },
+      });
       if (!expected || expected.status !== VisitStatus.expected) {
         throw new NotFoundException('That pre-registered visit is no longer available.');
       }
       const purpose = dto.purpose ?? expected.purpose;
-      const gate = expected.visitorId
-        ? await this.visits.evaluateEntryGates(expected.visitorId, expected.hostId)
-        : await this.visits.evaluateWorkingHours();
+      const gate =
+        expected.visitorId && expected.hostId
+          ? await this.visits.evaluateEntryGates(expected.visitorId, expected.hostId)
+          : await this.visits.evaluateWorkingHours();
       if (!gate.ok) {
         await this.visits.recordSelfServiceException({
           visitorId: expected.visitorId,
@@ -148,19 +133,20 @@ export class SelfServiceService {
       return { status: 'success', visitorName: visit.visitorName, hostName: visit.hostName, entryCode };
     }
 
-    // --- Walk-in: a self-contained log entry, NO Visitor record (PRD v2) ---
+    // --- Walk-in: a self-contained log entry, NO Visitor record, NO host yet.
+    // The visitor checks in immediately; front desk assigns the host and nudges
+    // them. No host directory is exposed to the visitor (PRD v2). ---
     if (!dto.newVisitor) throw new BadRequestException('Visitor details are required.');
-    if (!dto.hostId) throw new BadRequestException('A host is required for a walk-in check-in.');
 
     // No persistent identity to check against the blocklist/restriction list, so
     // only the working-hours gate applies (blocklist/flag deferred — PRD v2).
     const gate = await this.visits.evaluateWorkingHours();
     if (!gate.ok) {
       await this.visits.recordSelfServiceException({
-        hostId: dto.hostId,
         purpose: dto.purpose,
         visitorName: dto.newVisitor.fullName,
         visitorPhone: dto.newVisitor.phone,
+        requestedHostName: dto.requestedHost,
         reason: gate.reason!,
         deviceId,
       });
@@ -168,16 +154,38 @@ export class SelfServiceService {
     }
 
     const { visit, entryCode } = await this.visits.selfServiceCheckIn({
-      hostId: dto.hostId,
       purpose: dto.purpose,
       visitorName: dto.newVisitor.fullName,
       visitorPhone: dto.newVisitor.phone,
       visitorEmail: dto.newVisitor.email,
+      requestedHostName: dto.requestedHost,
       headshot: dto.headshot,
       signature: dto.signature,
       consentVersion: dto.consentVersion,
       deviceId,
     });
-    return { status: 'success', visitorName: visit.visitorName, hostName: visit.hostName, entryCode };
+    return {
+      status: 'success',
+      visitorName: visit.visitorName,
+      hostName: visit.hostName ?? null,
+      entryCode,
+    };
+  }
+
+  /**
+   * Self check-out (PRD v2 §3.3). Resolves the caller's own active visit from the
+   * typed entry code — a raw visit id is never accepted, so a visitor can only
+   * check out the visit whose code they hold (not an arbitrary one).
+   */
+  async checkOut(entryCode: string, deviceId: string) {
+    const code = normalizeEntryCode(entryCode);
+    const visit = await this.prisma.visit.findUnique({
+      where: { entryCode: code },
+      select: { id: true, status: true },
+    });
+    if (!visit || visit.status !== VisitStatus.checked_in) {
+      throw new NotFoundException('No active visit found for that code.');
+    }
+    return this.visits.selfServiceCheckOut(visit.id, deviceId);
   }
 }

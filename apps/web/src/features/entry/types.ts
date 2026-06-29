@@ -5,30 +5,25 @@ export interface ConsentPolicy {
   text: string;
 }
 
-export interface EntryHost {
-  id: string;
-  fullName: string;
-  department: string | null;
-}
-
-/** A currently-checked-in visit, for the streamlined check-out list (PRD v2 §3.3). */
+/** A currently-checked-in visit, for the check-out roster (PRD v2 §3.3). Minimal
+ * by design — no visit id or photo; check-out is keyed on the visitor's own code. */
 export interface EntryActiveVisit {
-  visitId: string;
   visitorName: string;
   phoneLast4: string;
-  photoUrl: string | null;
   hostName: string;
   checkInTime: string | null;
 }
 
-/** A visit looked up by entry code (pre-registered check-in, or active check-out). */
-export interface EntryVisit {
-  id: string;
-  visitorId: string;
-  visitorName: string;
+/** Pre-registration confirmation from a typed code — no id/phone/photo. */
+export interface PreRegLookup {
   hostName: string;
   purpose: string | null;
-  expectedTime: string | null;
+}
+
+/** Active-visit confirmation from a typed code (check-out) — no id/phone/photo. */
+export interface ActiveLookup {
+  visitorName: string;
+  hostName: string;
   checkInTime: string | null;
 }
 
@@ -37,10 +32,12 @@ export type CheckInResult =
   | { status: 'redirect' };
 
 export interface CheckInInput {
-  expectedVisitId?: string;
+  /** Pre-registered path: the typed code; the server resolves the expected visit. */
+  entryCode?: string;
   /** Walk-in details captured this visit (no Visitor record kept). */
   newVisitor?: { fullName: string; phone: string; email?: string };
-  hostId?: string;
+  /** Walk-in: the host the visitor typed (free text); front desk assigns the real host. */
+  requestedHost?: string;
   purpose?: string;
   /** Base64 headshot + drawn signature captured at the device. */
   headshot?: string;
